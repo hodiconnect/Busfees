@@ -1,0 +1,1445 @@
+<title>Bus Fees Calculator 2.1</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Malayalam:wght@400;500&display=swap">
+<style>
+/* Layout: screen = one-column ledger (CSV, cost inputs, concessions, calculated sheets, checks). Print = separate A4 report (#report): portrait for summary, inputs, cost, rate, checks; landscape for stop and route tables. */
+:root{
+  --bg:#f4f5f2; --paper:#ffffff; --ink:#18212b; --muted:#56606b; --line:#d7dbd6; --soft:#edf0ec;
+  --navy:#1c2b40; --navy-ink:#1c2b40; --green:#5f9e3a; --green-soft:#e9f3e1;
+  --input:#fff6d5; --input-line:#e6cf7a;
+  --good:#1f7a4a; --good-soft:#e3f3ea; --warn:#9a5b00; --warn-soft:#fff1d9; --bad:#b3261e; --bad-soft:#fbe5e3;
+  --display:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans","Noto Sans Malayalam",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --ml:"Noto Sans Malayalam","IBM Plex Sans",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12171d; --paper:#1a2129; --ink:#e7eaee; --muted:#9aa4ae; --line:#303a45; --soft:#212a33;
+  --navy:#9db4d8; --navy-ink:#c9d7ee; --green:#8cc46a; --green-soft:#1d2e1a;
+  --input:#3a3214; --input-line:#6b5a1f;
+  --good:#5cc98d; --good-soft:#173326; --warn:#f0b35c; --warn-soft:#3a2a12; --bad:#ff8a80; --bad-soft:#3d1c1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171d; --paper:#1a2129; --ink:#e7eaee; --muted:#9aa4ae; --line:#303a45; --soft:#212a33;
+  --navy:#9db4d8; --navy-ink:#c9d7ee; --green:#8cc46a; --green-soft:#1d2e1a;
+  --input:#3a3214; --input-line:#6b5a1f;
+  --good:#5cc98d; --good-soft:#173326; --warn:#f0b35c; --warn-soft:#3a2a12; --bad:#ff8a80; --bad-soft:#3d1c1a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.5}
+.wrap{max-width:1100px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+header.top{display:grid;gap:10px;border-bottom:3px solid var(--green);padding-bottom:14px}
+.brand{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between}
+.logo-plate{background:#fff;border-radius:6px;padding:6px 10px;display:inline-flex;border:1px solid var(--line)}
+.logo-plate img{height:52px;width:auto;display:block;max-width:100%}
+.titleblock{display:grid;gap:2px}
+h1{font-family:var(--display);font-weight:700;font-size:44px;line-height:1.05;margin:0;color:var(--navy-ink);text-wrap:balance}
+.credit{font-size:12px;font-weight:700;font-style:italic;color:var(--muted)}
+h2{font-family:var(--display);font-size:19px;margin:0;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;color:var(--navy-ink)}
+h2 .n{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 4px;border-radius:4px;background:var(--navy);color:var(--paper);font-size:14px}
+.ml{font-family:var(--ml);color:var(--muted);font-size:12.5px;font-weight:400}
+.lead{color:var(--muted);max-width:85ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:end}
+.meta label{display:grid;gap:2px;font-size:12px;color:var(--muted)}
+.meta input{font:inherit;color:var(--ink);background:var(--input);border:1px solid var(--input-line);border-radius:4px;padding:5px 8px;min-width:0;width:220px;max-width:100%}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button,.filebtn{font:500 13px var(--body);border-radius:4px;padding:7px 12px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;display:inline-block}
+button.primary,.filebtn{background:var(--navy);border-color:var(--navy);color:var(--paper)}
+button.export{background:var(--green);border-color:var(--green);color:#fff}
+button:disabled{opacity:.6;cursor:wait}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.filebtn:focus-within{outline:2px solid var(--green);outline-offset:2px}
+.filebtn{position:relative}
+.filebtn input{position:absolute;width:1px;height:1px;opacity:0;left:0;top:0}
+.notice{margin:0;padding:8px 12px;border-radius:4px;background:var(--warn-soft);font-size:13px}
+.notice.ok{background:var(--good-soft)}
+.summary{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:10px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px 16px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.summary div{display:grid;min-width:0}
+.summary span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.summary b{font-family:var(--mono);font-size:16px;font-variant-numeric:tabular-nums}
+.summary .fee b{color:var(--green)}
+section.card{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:16px;display:grid;gap:12px;min-width:0}
+.sec-note{margin:0;color:var(--muted);font-size:13px;max-width:95ch}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--display);font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--soft)}
+th.r,td.r{text-align:right}
+td.item{font-weight:600;min-width:150px}
+td.item .ml{display:block}
+td.desc{color:var(--muted);font-size:13px;min-width:200px}
+td.val{white-space:nowrap;width:1%}
+td.val input,td.val select{font:500 14px var(--mono);width:130px;padding:6px 8px;border:1px solid var(--input-line);border-radius:4px;background:var(--input);color:var(--ink);text-align:right}
+td.val select{text-align:left;width:190px;font-family:var(--body);font-size:13px}
+td.unit{color:var(--muted);font-size:12.5px;white-space:nowrap}
+td.amt{text-align:right;font-family:var(--mono);white-space:nowrap}
+td.how{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:240px}
+tr.sub td{background:var(--soft);font-weight:600}
+tr.total td{background:var(--green-soft);font-weight:700;font-size:15px;border-top:2px solid var(--green)}
+tr.grp td{background:var(--soft);font-weight:700;font-family:var(--display);letter-spacing:.02em;color:var(--navy-ink)}
+.neg{color:var(--bad)} .pos{color:var(--good)}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px}
+.checks{display:grid;gap:8px;list-style:none;margin:0;padding:0}
+.checks li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:8px 10px;border-radius:4px}
+.checks li b.pill{font:600 11px var(--display);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+.ok{background:var(--good-soft)} .ok b.pill{background:var(--good);color:var(--paper)}
+.warn{background:var(--warn-soft)} .warn b.pill{background:var(--warn);color:var(--paper)}
+.bad{background:var(--bad-soft)} .bad b.pill{background:var(--bad);color:var(--paper)}
+.feebox{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.feebox div{border:1px solid var(--line);border-radius:6px;padding:12px;display:grid;gap:2px;min-width:0}
+.feebox div.main{border:2px solid var(--green);background:var(--green-soft)}
+.feebox span{font-size:12px;color:var(--muted)}
+.feebox b{font-family:var(--mono);font-size:20px;overflow-wrap:anywhere}
+.feebox small{color:var(--muted);font-size:12px}
+.formula{font-family:var(--mono);font-size:13px;background:var(--soft);border-radius:4px;padding:10px 12px;margin:0;white-space:pre-wrap}
+textarea{width:100%;min-height:150px;font:12.5px/1.45 var(--mono);color:var(--ink);background:var(--input);border:1px solid var(--input-line);border-radius:4px;padding:8px;resize:vertical}
+.csvbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.status{font-size:13px;font-weight:600}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pills span{font:500 12.5px var(--mono);padding:4px 10px;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.sample{display:inline-block;font:700 11px var(--display);letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:3px;background:var(--warn);color:var(--paper)}
+.sign{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding-top:36px}
+.sign div{border-top:1px solid var(--ink);padding-top:6px;font-size:12.5px;color:var(--muted)}
+.foot{font-size:12px;color:var(--muted);margin:0}
+.foot b{font-style:italic}
+.howto ol{margin:0;padding-left:20px;display:grid;gap:4px}
+#report{display:none}
+.vtag{font:600 12px var(--display);letter-spacing:.04em;color:var(--green)}
+h3.subh{margin:6px 0 0;font-family:var(--display);font-size:16px;color:var(--navy-ink)}
+.bizbox{display:grid;gap:8px}
+.bizbox p.bp{color:var(--ink);font-size:14px}
+ul.bl{margin:0;padding-left:20px;display:grid;gap:4px}
+.stagebox{display:grid;gap:8px;border-top:1px dashed var(--line);padding-top:12px}
+.stagebox h3{margin:0;font-family:var(--display);font-size:16px;color:var(--navy-ink)}
+table.stages td.val input{width:120px}
+tr.dim{opacity:.45}
+@media (max-width:640px){.sign{grid-template-columns:1fr}.summary{position:static}h1{font-size:34px}.logo-plate img{height:40px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ===== A4 print report ===== */
+@page{size:A4 portrait;margin:12mm 12mm 14mm}
+@page wide{size:A4 landscape;margin:12mm 12mm 14mm}
+@media print{
+  :root,:root[data-theme="dark"]{color-scheme:light}
+  html,body{background:#fff!important;color:#111}
+  :root{padding:0!important}
+  .app{display:none!important}
+  #report{display:block;font-family:"IBM Plex Sans",Arial,sans-serif;font-size:8.6pt;line-height:1.35;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+#report .rp-sec{break-inside:auto;margin:0 0 5mm}
+#report .rp-wide{page:wide;break-before:page}
+#report .rp-break{break-before:page}
+#report .lh{display:grid;grid-template-columns:auto 1fr;gap:4mm 8mm;align-items:center;padding-bottom:3mm;border-bottom:1.2mm solid #5f9e3a;margin-bottom:4mm}
+#report .lh img{height:15mm;width:auto}
+#report .lh .t{text-align:right}
+#report .lh h1{font-family:"IBM Plex Sans Condensed",Arial,sans-serif;font-size:22pt;color:#1c2b40;margin:0;line-height:1.05}
+#report .lh .credit{font-size:8pt;color:#444;font-weight:700;font-style:italic}
+#report .metaline{display:flex;flex-wrap:wrap;gap:2mm 8mm;font-size:8.5pt;color:#333;margin:0 0 4mm}
+#report .metaline b{color:#1c2b40}
+#report .runhead{display:flex;justify-content:space-between;align-items:center;border-bottom:.4mm solid #5f9e3a;padding-bottom:1.5mm;margin-bottom:3mm;font-size:8pt;color:#444}
+#report .runhead img{height:7mm}
+#report h2{font-family:"IBM Plex Sans Condensed",Arial,sans-serif;font-size:12.5pt;color:#1c2b40;margin:0 0 2mm;display:flex;gap:2.5mm;align-items:center;break-after:avoid}
+#report h2 .n{background:#1c2b40;color:#fff;border-radius:1mm;min-width:6mm;height:6mm;display:inline-grid;place-items:center;font-size:9pt;padding:0 1mm}
+#report p.intro{margin:0 0 2mm;color:#444;font-size:8.2pt}
+#report p.intro,#report h2{break-after:avoid;page-break-after:avoid}
+#report .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:2.5mm;margin:0 0 5mm}
+#report .kpi{border:.3mm solid #cfd6cf;border-radius:1.5mm;padding:2mm 2.5mm;background:#f6f8f5}
+#report .kpi span{display:block;font-size:6.8pt;text-transform:uppercase;letter-spacing:.04em;color:#555}
+#report .kpi b{font-size:10.5pt;color:#1c2b40;font-variant-numeric:tabular-nums}
+#report .kpi.hl{background:#e9f3e1;border-color:#5f9e3a}
+#report table{width:100%;border-collapse:collapse;table-layout:auto;margin:0 0 2mm}
+#report th{background:#1c2b40;color:#fff;font-family:"IBM Plex Sans Condensed",Arial,sans-serif;font-weight:600;font-size:7.6pt;text-transform:uppercase;letter-spacing:.03em;padding:1.4mm 1.6mm;border:0;text-align:left;vertical-align:bottom}
+#report td{padding:1.1mm 1.6mm;border-bottom:.2mm solid #d9ddd8;vertical-align:top;overflow-wrap:break-word;font-variant-numeric:tabular-nums}
+#report tbody tr:nth-child(even) td{background:#f7f8f6}
+#report td.n,#report th.n{text-align:right;white-space:nowrap}
+#report td.w{font-size:7.4pt;color:#444}
+#report .rp-wide table{font-size:7.8pt}
+#report .rp-wide td:first-child{white-space:nowrap}
+#report tr.sub td{background:#edf0ec!important;font-weight:700}
+#report tr.total td{background:#e9f3e1!important;font-weight:700;border-top:.4mm solid #5f9e3a}
+#report tr.grp td{background:#e4e9ef!important;color:#1c2b40;font-weight:700;font-family:"IBM Plex Sans Condensed",Arial,sans-serif;font-size:8.4pt}
+#report thead{display:table-header-group}
+#report tr{break-inside:avoid}
+#report .neg{color:#b3261e} #report .pos{color:#1f7a4a}
+#report ul.ck{list-style:none;margin:0;padding:0;display:grid;gap:1.2mm}
+#report ul.ck li{display:grid;grid-template-columns:14mm 1fr;gap:2mm;padding:1.2mm 2mm;border-radius:1mm;break-inside:avoid}
+#report ul.ck li b{font-size:6.8pt;text-transform:uppercase;letter-spacing:.05em;border-radius:.8mm;text-align:center;padding:.3mm 0;color:#fff}
+#report li.ok{background:#e3f3ea} #report li.ok b{background:#1f7a4a}
+#report li.warn{background:#fff1d9} #report li.warn b{background:#9a5b00}
+#report li.bad{background:#fbe5e3} #report li.bad b{background:#b3261e}
+#report .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:10mm;padding-top:16mm;break-inside:avoid}
+#report .sign div{border-top:.3mm solid #111;padding-top:1.5mm;font-size:8pt;color:#333}
+#report h3.bh{font-family:"IBM Plex Sans Condensed",Arial,sans-serif;font-size:10pt;color:#1c2b40;margin:3mm 0 1.2mm;break-after:avoid}
+#report p.bp{margin:0 0 2mm;font-size:8.4pt}
+#report p.bnote{margin:2mm 0 0;font-size:7.2pt;color:#555}
+#report ul.bl{margin:0 0 1mm;padding-left:5mm;font-size:8.2pt}
+#report ul.bl li{margin:0 0 .6mm}
+#report table.bt td,#report table.bt th{padding:.45mm 1.6mm;font-size:7.6pt}
+#report .rp-break ul.bl{font-size:7.8pt}
+#report .endnote{margin-top:5mm;font-size:7.4pt;color:#555;border-top:.2mm solid #ccc;padding-top:2mm}
+</style>
+
+<div class="app">
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="titleblock">
+        <h1>Bus Fees Calculator</h1>
+        <div class="credit">Created by Industry Connect-TKMIT</div>
+        <div class="vtag" id="vtag"></div>
+      </div>
+      <div class="logo-plate"><img src="data:image/jpeg;base64,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" alt="TKM Institute of Technology, Musaliar Hills, Karuvelil PO, Kollam, Kerala 691505"></div>
+    </div>
+    <p class="lead">The June 2026 fee chart is loaded as the base. Every stop keeps its chart fee; fees change only by one revision formula, and only when the required collection is more than the present fees collect. Enter students per stop in section 1 and costs in sections 2 to 8. <span class="ml">നിലവിലെ ഫീസ് അടിസ്ഥാനമാക്കി മാത്രം പരിഷ്കരണം.</span></p>
+    <div class="meta">
+      <label for="m_period">Period / semester<input id="m_period" type="text" value="Semester starting Nov 2026"></label>
+      <label for="m_by">Prepared by<input id="m_by" type="text" placeholder="Name"></label>
+      <label for="m_date">Date<input id="m_date" type="date"></label>
+    </div>
+    <div class="btns">
+      <button type="button" id="b_xlsx" class="export">Download Excel (.xlsx)</button>
+      <button type="button" id="b_pdf" class="export">Download PDF</button>
+      <button type="button" id="b_print" class="primary">Print</button>
+      <button type="button" id="b_sample">Reload June 2026 chart</button>
+      <button type="button" id="b_clear">Clear all</button>
+    </div>
+    <p class="notice" id="notice" hidden></p>
+  </header>
+
+  <div class="summary" aria-live="polite">
+    <div><span>Routes · stops</span><b id="s_rs">–</b></div>
+    <div><span>Cost / semester</span><b id="s_cost">–</b></div>
+    <div><span>To collect (cost + profit)</span><b id="s_total">–</b></div>
+    <div><span>Collection at chart fees</span><b id="s_req">–</b></div>
+    <div class="fee"><span>Fee change</span><b id="s_rate">–</b></div>
+    <div><span>Checks</span><b id="s_checks">–</b></div>
+  </div>
+
+  <section class="card howto">
+    <h2>How to use this sheet</h2>
+    <ol>
+      <li>Section 1 already holds the June 2026 chart (88 stops). Replace the sample student numbers with the real fee-paying students at each stop, and add free students, teachers and caretakers. Save as CSV from Excel and upload, or edit the text box.</li>
+      <li>Enter the costs for these buses in sections 2 to 6, or choose "Enter the amount directly" in section 8.</li>
+      <li>Set the revision rules in section 8: required profit, method (A is recommended), rounding and the largest increase allowed this year.</li>
+      <li>Read section 14 (Checks). Fix every red item; recheck yellow items.</li>
+      <li>Section 11 is the fee chart. "same" means the stop keeps its chart fee. Download Excel or PDF, or print, and get it signed.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">1</span>Base fee chart and students <span class="ml">അടിസ്ഥാന ഫീസ് ചാർട്ട്, വിദ്യാർത്ഥികൾ</span> <span class="sample" id="sampletag" hidden>Sample students</span></h2>
+    <p class="sec-note">One row per stop, in route order. The stops and fees are the June 2026 chart; the student numbers are samples (set per route from last semester's collection) and must be replaced. Column names can be in any order; the first row must be the header.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Column</th><th>What to enter</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td class="item">Route</td><td class="desc">Route name. Same spelling on every stop of the route.</td><td class="how">Punalur</td></tr>
+        <tr><td class="item">Bus Type</td><td class="desc"><b>Own</b> or <b>Contract</b>. Blank is taken as Own.</td><td class="how">Own</td></tr>
+        <tr><td class="item">Route KM</td><td class="desc">Daily running km of the bus (from the fee list). Enter on any one stop of the route. Used for fuel cost.</td><td class="how">70</td></tr>
+        <tr><td class="item">Stop</td><td class="desc">Name of the boarding point.</td><td class="how">Ezhukone</td></tr>
+        <tr><td class="item">Distance KM <span class="ml">(optional)</span></td><td class="desc">Road distance from this stop to the college. Not used for fees; used for the fare-unit study and teacher stages by km.</td><td class="how">6</td></tr>
+        <tr><td class="item">Base Monthly Fee</td><td class="desc">The June 2026 chart monthly fee. This is the base and is never recalculated.</td><td class="how">1200</td></tr>
+        <tr><td class="item">Semester Fee <span class="ml">(optional)</span></td><td class="desc">Chart semester fee, used only to check it equals monthly × 5.</td><td class="how">6000</td></tr>
+        <tr><td class="item">Students</td><td class="desc">Fee-paying students boarding at this stop.</td><td class="how">4</td></tr>
+        <tr><td class="item">Free Students <span class="ml">(optional)</span></td><td class="desc">Students travelling free at this stop (for example hostel students).</td><td class="how">2</td></tr>
+        <tr><td class="item">Teachers <span class="ml">(optional)</span></td><td class="desc">Teachers boarding at this stop.</td><td class="how">1</td></tr>
+        <tr><td class="item">Caretakers <span class="ml">(optional)</span></td><td class="desc">Caretakers on this bus (free). Enter on any one stop; blank uses the default in section 7.</td><td class="how">1</td></tr>
+      </tbody></table></div>
+    <div class="csvbar">
+      <label class="filebtn" for="csvfile">Upload CSV file<input type="file" id="csvfile" accept=".csv,text/csv,text/plain"></label>
+      <button type="button" id="b_tpl">Download chart as CSV</button>
+      <button type="button" id="b_copy">Copy CSV text</button>
+      <span class="status" id="csvstatus"></span>
+    </div>
+    <label for="csvtext" class="sec-note">Stop list as CSV text (paste from Excel here or edit directly):</label>
+    <textarea id="csvtext" spellcheck="false"></textarea>
+    <div class="pills" id="csvpills"></div>
+    <ul class="checks" id="csverrors"></ul>
+  </section>
+
+  <div id="inputs"></div>
+
+  <section class="card">
+    <h2><span class="n">9</span>Monthly cost and required collection <span class="ml">മാസച്ചെലവ്</span></h2>
+    <p class="sec-note">Calculated from the stop list and your entries. The middle column shows the working.</p>
+    <div class="tbl"><table id="t_cost"><thead><tr><th>Cost head</th><th>How it is calculated</th><th class="r">Amount (₹)</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">10</span>Fee revision <span class="ml">ഫീസ് പരിഷ്കരണം</span></h2>
+    <div class="feebox" id="feebox"></div>
+    <pre class="formula" id="formula"></pre>
+    <div class="tbl"><table id="t_rate"><thead><tr><th>Step</th><th>How it is calculated</th><th class="r">Value</th></tr></thead><tbody></tbody></table></div>
+    <h3 class="subh">Fare stages</h3>
+    <div class="tbl"><table id="t_stages"><thead></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">11</span>Fee chart by stop <span class="ml">സ്റ്റോപ്പ് തിരിച്ചുള്ള ഫീസ്</span></h2>
+    <p class="sec-note" id="feechartnote"></p>
+    <div class="tbl"><table id="t_stops"><thead></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">12</span>Fare units against distance <span class="ml">ഫെയർ യൂണിറ്റും ദൂരവും</span></h2>
+    <p class="sec-note" id="distnote"></p>
+    <div class="tbl"><table id="t_dist" hidden><thead></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">13</span>Route-wise result <span class="ml">റൂട്ട് തിരിച്ചുള്ള വരവ്-ചെലവ്</span></h2>
+    <p class="sec-note">Billing at chart fees and expected collection at the new fees against each route's share of cost. Own buses: per-bus costs shared equally, fuel and maintenance by daily km. Contract buses: their rent.</p>
+    <div class="tbl"><table id="t_routes"><thead></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">14</span>Checks <span class="ml">പരിശോധന</span></h2>
+    <ul class="checks" id="checks"></ul>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">15</span>Business report <span class="ml">ലാഭനഷ്ട റിപ്പോർട്ട്</span></h2>
+    <div id="bizbox" class="bizbox"></div>
+  </section>
+
+  <section class="card">
+    <h2>Approval</h2>
+    <div class="sign"><div>Prepared by (Data entry)</div><div>Checked by (Accounts)</div><div>Approved by</div></div>
+  </section>
+
+  <p class="foot"><b>Created by Industry Connect-TKMIT.</b> Method (Bus Fee Structure Study, Nov 2026): the June 2026 chart fee of each stop is the base, M = ₹1,200 + ₹60 × k. When the required collection is more than the chart fees collect, one revision is applied to every stop (method A: same percentage), with only the increase rounded up, so a stop with no increase keeps its exact chart fee.</p>
+</div>
+</div>
+
+<div id="report"></div>
+
+<script>
+/* ===== CALC-START (pure functions, tested) ===== */
+function parseCSV(text){
+  const rows=[]; let row=[], cell='', q=false;
+  const t=String(text||'').replace(/^﻿/,'').replace(/\r\n?/g,'\n');
+  for (let i=0;i<t.length;i++){
+    const c=t[i];
+    if (q){ if(c==='"'){ if(t[i+1]==='"'){cell+='"';i++;} else q=false; } else cell+=c; }
+    else if (c==='"') q=true;
+    else if (c===','||c==='\t'||c===';'){ row.push(cell); cell=''; }
+    else if (c==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+    else cell+=c;
+  }
+  if (cell!==''||row.length){ row.push(cell); rows.push(row); }
+  const lines=rows.map((r,i)=>({n:i+1,cells:r.map(x=>x.trim())})).filter(r=>r.cells.some(x=>x!==''));
+  const res={stops:[],errors:[],warnings:[],hasDist:false,hasSem:false,hasMonthly:false};
+  if (!lines.length){ res.errors.push('No data. Upload or paste the route and stop list.'); return res; }
+  const head=lines[0].cells.map(h=>h.toLowerCase());
+  const used=new Set();
+  const find=re=>{ const i=head.findIndex((h,j)=>!used.has(j)&&re.test(h)); if(i>=0) used.add(i); return i; };
+  const col={};
+  col.type=find(/type|own|contract/);
+  col.free=find(/free|hostel/);
+  col.care=find(/care|attend|helper|ayah/);
+  col.teach=find(/teach|faculty|staff/);
+  col.rkm=find(/route\s*(km|dist|length)|total\s*km/);
+  col.sem=find(/semester|\bsem\b/);
+  col.fee=find(/fee|fare|monthly|month|base|rate/);
+  col.route=find(/route|bus/);
+  col.stop=find(/stop|place|point|boarding/);
+  col.km=find(/dist|km|kilo/);
+  col.students=find(/student|count|number|pass/);
+  res.hasDist=col.km>=0; res.hasSem=col.sem>=0; res.hasMonthly=col.fee>=0;
+  const names={route:'Route',stop:'Stop',students:'Students'};
+  for (const k of ['route','stop','students']) if (col[k]<0) res.errors.push(`Header row is missing the "${names[k]}" column.`);
+  if (col.fee<0&&col.sem<0) res.errors.push('Header row needs a "Base Monthly Fee" (or "Semester Fee") column.');
+  if (res.errors.length) return res;
+  const num=s=>{ const x=String(s).replace(/[₹,\s]/g,''); return x===''?NaN:Number(x); };
+  const whole=(raw,label,L,optional)=>{
+    if (optional && String(raw).trim()==='') return {ok:true,v:0,blank:true};
+    const x=num(raw);
+    if (!isFinite(x)||x<0||Math.floor(x)!==x){ res.errors.push(`Line ${L.n}: ${label} "${raw}" must be a whole number.`); return {ok:false}; }
+    return {ok:true,v:x,blank:false};
+  };
+  const typeOf={};
+  for (const L of lines.slice(1)){
+    const g=i=> i>=0 ? (L.cells[i]??'') : '';
+    const route=g(col.route), stop=g(col.stop);
+    const rawType=g(col.type).toLowerCase();
+    const type=/contract|hire|rent/.test(rawType)?'Contract':'Own';
+    if (!route){ res.errors.push(`Line ${L.n}: route name is empty.`); continue; }
+    if (!stop) res.warnings.push(`Line ${L.n}: stop name is empty on route "${route}".`);
+    const fee=col.fee>=0?num(g(col.fee)):NaN, sem=col.sem>=0?num(g(col.sem)):NaN;
+    if (!(fee>0)&&!(sem>0)){ res.errors.push(`Line ${L.n}: base fee "${g(col.fee>=0?col.fee:col.sem)}" is not a valid amount.`); continue; }
+    const kmRaw=g(col.km), km=kmRaw===''?null:num(kmRaw);
+    if (km!==null&&(!isFinite(km)||km<0)){ res.errors.push(`Line ${L.n}: distance "${kmRaw}" is not a valid number of km.`); continue; }
+    const rkRaw=g(col.rkm), rkm=rkRaw===''?null:num(rkRaw);
+    if (rkm!==null&&(!isFinite(rkm)||rkm<0)){ res.errors.push(`Line ${L.n}: route km "${rkRaw}" is not a valid number.`); continue; }
+    const st=whole(g(col.students),'students',L,true);
+    const fr=whole(g(col.free),'free students',L,true);
+    const te=whole(g(col.teach),'teachers',L,true);
+    const ca=whole(g(col.care),'caretakers',L,true);
+    if (!st.ok||!fr.ok||!te.ok||!ca.ok) continue;
+    if (rawType && !/own|contract|hire|rent/.test(rawType)) res.warnings.push(`Line ${L.n}: bus type "${g(col.type)}" not recognised, taken as Own.`);
+    if (typeOf[route] && typeOf[route]!==type){ res.errors.push(`Line ${L.n}: route "${route}" is marked both Own and Contract.`); continue; }
+    typeOf[route]=type;
+    res.stops.push({route,type,stop:stop||'(no name)',fee:fee>0?fee:null,sem:sem>0?sem:null,km,rkm,students:st.v,free:fr.v,teachers:te.v,care:ca.blank?null:ca.v,line:L.n});
+  }
+  if (!res.stops.length && !res.errors.length) res.errors.push('The file has a header but no stop rows.');
+  return res;
+}
+function calc(v, stops){
+  const p=x=>(Number(x)||0)/100;
+  const clamp01=x=>Math.min(1,Math.max(0,x));
+  const m=Number(v.semMonths)||0;
+  const r={};
+  // ---- stops and routes ----
+  const S=stops.map(s=>{ const M=s.fee>0?s.fee:(m>0?s.sem/m:0); return {...s,M,semBase:M*m,semMismatch:(s.fee>0&&s.sem>0&&Math.abs(s.sem-s.fee*m)>0.5)}; });
+  const map=new Map();
+  for (const s of S){
+    if (!map.has(s.route)) map.set(s.route,{name:s.route,type:s.type,rkm:null,dmax:null,students:0,free:0,teachers:0,careCsv:null,stops:[]});
+    const R=map.get(s.route); R.stops.push(s);
+    if (s.rkm!==null&&s.rkm!==undefined) R.rkm=Math.max(R.rkm||0,s.rkm);
+    if (s.km!==null&&s.km!==undefined) R.dmax=Math.max(R.dmax||0,s.km);
+    R.students+=s.students; R.free+=s.free; R.teachers+=s.teachers;
+    if (s.care!==null&&s.care!==undefined) R.careCsv=(R.careCsv||0)+s.care;
+  }
+  r.routes=[...map.values()];
+  for (const R of r.routes){
+    R.km=R.rkm!==null?R.rkm:(R.dmax!==null?R.dmax:0);
+    R.kmSource=R.rkm!==null?'Route KM':(R.dmax!==null?'farthest stop':'missing');
+    R.caretakers=R.careCsv!==null?R.careCsv:(Number(v.caretakersPerBus)||0);
+  }
+  const own=r.routes.filter(x=>x.type==='Own'), con=r.routes.filter(x=>x.type==='Contract');
+  r.ownBuses=own.length; r.contractListed=con.length;
+  r.contractInput=Math.max(0,Math.floor(Number(v.contractCount)||0));
+  r.contractBuses=Math.max(r.contractListed,r.contractInput);
+  r.contractExtra=r.contractBuses-r.contractListed;
+  r.noKm=own.filter(R=>R.kmSource==='missing').map(R=>R.name);
+  // ---- monthly cost ----
+  for (const R of own) R.dailyKm=R.km*v.kmFactor+v.extraKm;
+  r.ownRouteKm=own.reduce((a,R)=>a+R.km,0);
+  r.dailyKm=own.reduce((a,R)=>a+R.dailyKm,0);
+  r.kmMonth=r.dailyKm*v.days;
+  r.litres=v.kmpl>0?r.kmMonth/v.kmpl:0;
+  r.dieselRate=v.diesel*(1+p(v.fuelInc));
+  r.fuel=r.litres*r.dieselRate;
+  r.salary=v.salary*(1+p(v.salaryInc));
+  r.roadTax=v.roadTaxPerBus*r.ownBuses*(1+p(v.otherInc));
+  r.insurance=v.insPerBusYear*r.ownBuses/12*(1+p(v.otherInc));
+  r.admin=v.admin*(1+p(v.otherInc));
+  r.maint=v.maint*(1+p(v.otherInc));
+  r.depBusesUsed=Math.min(v.depBuses,r.ownBuses);
+  r.dep=v.busCost*p(v.depRate)*r.depBusesUsed/12;
+  r.fixed=r.salary+r.roadTax+r.insurance+r.admin+r.dep;
+  r.variable=r.fuel+r.maint;
+  r.sub=r.fixed+r.variable;
+  r.rentPerBusMonth=(v.rentBasis==='day'?v.rent*v.days:v.rent)*(1+p(v.rentInc));
+  r.rent=r.rentPerBusMonth*r.contractBuses;
+  r.pctSum=p(v.reservePct)+p(v.contPct);
+  r.pctBase=r.sub+(v.pctOnRent?r.rent:0);
+  r.reserve=r.pctBase*p(v.reservePct);
+  r.cont=r.pctBase*p(v.contPct);
+  r.extras=r.rent+r.reserve+r.cont;
+  r.total=r.sub+r.extras;
+  r.semCost=r.total*m;
+  r.direct=v.needMode==='direct';
+  r.costUsed=r.direct?(Number(v.needDirect)||0):r.semCost;
+  r.profitReq=Number(v.profit)||0;
+  r.target=r.costUsed+r.profitReq;
+  // ---- concessions ----
+  const sub=clamp01(p(v.teacherSub));
+  const stageMode=v.teacherMode==='stage'; r.stageMode=stageMode;
+  const instT=v.teacherSubBy==='institution', instF=v.freeBy==='institution';
+  const keep=clamp01(1-p(v.nonPayPct)); r.keep=keep;
+  r.students=S.reduce((a,s)=>a+s.students,0);
+  r.free=S.reduce((a,s)=>a+s.free,0);
+  r.teachers=S.reduce((a,s)=>a+s.teachers,0);
+  r.caretakers=r.routes.reduce((a,R)=>a+R.caretakers,0);
+  r.travellers=r.students+r.free+r.teachers+r.caretakers;
+  const stIn=[1,2,3,4,5].map(i=>({km:Number(v['st'+i+'Km'])||0,rate:Number(v['st'+i+'Rate'])||0})).filter(s=>s.rate>0);
+  const stClosed=stIn.filter(s=>s.km>0).sort((a,b)=>a.km-b.km), stOpen=stIn.filter(s=>!(s.km>0));
+  r.stageMult=v.teacherBasis==='month'?m:1;
+  r.stages=[...stClosed.map((s,i)=>({from:i?stClosed[i-1].km:0,to:s.km,rate:s.rate})),...(stOpen.length?[{from:stClosed.length?stClosed[stClosed.length-1].km:0,to:null,rate:stOpen[0].rate}]:[])];
+  r.stageByFee=v.teacherStageBy!=='km';
+  const stageFor=km=>{
+    if (km===null||km===undefined) return {rate:null,over:false,nokm:true};
+    for (const s of r.stages) if (s.to!==null && km<=s.to+1e-9) return {rate:s.rate*r.stageMult,over:false};
+    const open=r.stages.find(s=>s.to===null); if (open) return {rate:open.rate*r.stageMult,over:false};
+    if (r.stages.length) return {rate:r.stages[r.stages.length-1].rate*r.stageMult,over:true};
+    return {rate:0,over:true};
+  };
+  // ---- fare units (study: M = M0 + u*k) ----
+  const M0=Number(v.unitBase)||0, U=Number(v.unitStep)||0;
+  r.M0=M0; r.U=U;
+  for (const s of S){ s.k=U>0?(s.M-M0)/U:0; s.onGrid=U>0&&Math.abs(s.k-Math.round(s.k))<1e-9; }
+  // ---- revision engine: increase parameter q, q=0 keeps every base fee ----
+  const rho=Number(v.roundTo)||1;
+  const method=v.method||'A'; r.method=method;
+  const capPct=Number(v.capPct)>0?Number(v.capPct):0; r.capPct=capPct;
+  const incRaw=(s,q)=>method==='A'?q*s.M:method==='B'?q*s.k:q;
+  const roundInc=d=>d>1e-7?Math.ceil(d/rho-1e-7)*rho:(d<-1e-7?-Math.floor(-d/rho+1e-7)*rho:0);
+  const newM=(s,q)=>{ let d=roundInc(incRaw(s,q)); let capped=false;
+    if (capPct>0){ const cap=Math.floor(s.M*capPct/100/rho+1e-9)*rho; if (d>cap){ d=cap; capped=true; } }
+    return {M:s.M+d,d,capped}; };
+  const routeTop=new Map(r.routes.map(R=>[R.name,R.stops.reduce((a,s)=>s.M>a.M?s:a,R.stops[0])]));
+  const stageKey=s=>r.stageByFee?s.M:s.km;
+  const tFeeFor=(s,Mn)=>{ if (stageMode){ const st=stageFor(stageKey(s)); return st.rate===null?Mn*m:st.rate; } return Math.ceil(Mn*(1-sub)/rho-1e-9)*rho*m; };
+  const collect=q=>{
+    let users=0,inst=0;
+    for (const s of S){
+      const Mn=newM(s,q).M, Sn=Mn*m, T=tFeeFor(s,Mn);
+      users+=Sn*s.students+T*s.teachers;
+      if (instT) inst+=Math.max(0,Sn-T)*s.teachers;
+      if (instF) inst+=Sn*s.free;
+    }
+    if (instF) for (const R of r.routes){ const top=routeTop.get(R.name); if (top) inst+=newM(top,q).M*m*R.caretakers; }
+    return users*keep+inst;
+  };
+  r.baseCollect=collect(0);
+  r.baseBilledStudents=S.reduce((a,s)=>a+s.semBase*s.students,0);
+  const T=r.target; const EPS=1e-6;
+  let q=0, short=false, reduced=false;
+  const qMin=method==='A'?-0.95:method==='B'?-(U||1):-(Math.min(...S.map(s=>s.M).concat([0]))-rho);
+  if (S.length&&T>0){
+    if (r.baseCollect>=T-EPS){
+      if (v.allowReduce){ let a=qMin,b=0; if (collect(a)>=T-EPS) b=a; else { for (let i=0;i<90;i++){ const mid=(a+b)/2; if (collect(mid)>=T-EPS) b=mid; else a=mid; } } q=b; reduced=q<0; }
+    } else {
+      let hi=method==='A'?0.05:method==='B'?5:50, n=0;
+      while (collect(hi)<T-EPS&&n<60){ hi*=2; n++; }
+      if (collect(hi)<T-EPS){ short=true; const top=collect(hi); let a=0,b=hi; for (let i=0;i<200;i++){ const mid=(a+b)/2; if (collect(mid)>=top-EPS) b=mid; else a=mid; } q=b; }
+      else { let a=0,b=hi; for (let i=0;i<90;i++){ const mid=(a+b)/2; if (collect(mid)>=T-EPS) b=mid; else a=mid; } q=b; }
+    }
+  }
+  r.q=q; r.short=short; r.reduced=reduced;
+  // study formula (before rounding, students only): g = C_req/(kappa*B_now) - 1
+  r.gStudy=r.baseBilledStudents>0&&keep>0?T/(keep*r.baseBilledStudents)-1:0;
+  r.stopRows=S.map(s=>{
+    const nm=newM(s,q), Mn=nm.M, Sn=Mn*m, Tn=tFeeFor(s,Mn), st=stageMode?stageFor(stageKey(s)):{};
+    const billedS=Sn*s.students, billedT=Tn*s.teachers;
+    const inst=(instT?Math.max(0,Sn-Tn)*s.teachers:0)+(instF?Sn*s.free:0);
+    return {...s,Mn,Sn,inc:nm.d,capped:nm.capped,change:s.M>0?nm.d/s.M:0,tFee:Tn,tNoKm:stageMode&&st.nokm,tOver:stageMode&&st.over,
+      billedS,billedT,billed:billedS+billedT,baseBilled:s.semBase*s.students,inst,freeValue:Sn*s.free,teacherGap:Math.max(0,Sn-Tn)*s.teachers};
+  });
+  for (const R of r.routes){ const top=routeTop.get(R.name); R.careFee=top?newM(top,q).M*m:0; R.careValue=R.careFee*R.caretakers; R.careInst=instF?R.careValue:0; }
+  r.billedS=r.stopRows.reduce((a,s)=>a+s.billedS,0);
+  r.billedT=r.stopRows.reduce((a,s)=>a+s.billedT,0);
+  r.billed=r.billedS+r.billedT;
+  r.expectedUsers=r.billed*keep;
+  r.instTotal=r.stopRows.reduce((a,s)=>a+s.inst,0)+r.routes.reduce((a,R)=>a+R.careInst,0);
+  r.expected=r.expectedUsers+r.instTotal;
+  r.surplus=r.expected-r.target;
+  r.profit=r.expected-r.costUsed;
+  r.shortfall=short?r.target-r.expected:0;
+  r.freeValue=r.stopRows.reduce((a,s)=>a+s.freeValue,0)+r.routes.reduce((a,R)=>a+R.careValue,0);
+  r.teacherGap=r.stopRows.reduce((a,s)=>a+s.teacherGap,0);
+  r.changed=r.stopRows.filter(s=>s.inc!==0).length;
+  r.cappedStops=r.stopRows.filter(s=>s.capped).length;
+  const ch=r.stopRows.filter(s=>s.students>0).map(s=>s.change);
+  r.chLo=ch.length?Math.min(...ch):0; r.chHi=ch.length?Math.max(...ch):0;
+  r.avgChange=r.baseBilledStudents>0?r.billedS/r.baseBilledStudents-1:0;
+  const pay=r.stopRows.filter(s=>s.students>0);
+  r.feeLo=pay.length?Math.min(...pay.map(s=>s.Sn)):0; r.feeHi=pay.length?Math.max(...pay.map(s=>s.Sn)):0;
+  // phase-in: remaining gap for next year
+  r.nextGap=short&&method==='A'?(1+r.gStudy)/(1+capPct/100)-1:null;
+  // ---- route results ----
+  const f=1+r.pctSum, fr=1+(v.pctOnRent?r.pctSum:0);
+  for (const R of r.routes){
+    const rows=r.stopRows.filter(s=>s.route===R.name);
+    R.baseBilled=rows.reduce((a,s)=>a+s.baseBilled,0);
+    R.billed=rows.reduce((a,s)=>a+s.billed,0);
+    R.inst=rows.reduce((a,s)=>a+s.inst,0)+R.careInst;
+    R.expected=R.billed*keep+R.inst;
+    if (R.type==='Own'){ const share=r.dailyKm>0?R.dailyKm/r.dailyKm:1/Math.max(1,r.ownBuses); R.costMonth=(r.fixed/Math.max(1,r.ownBuses)+r.variable*share)*f; }
+    else R.costMonth=r.rentPerBusMonth*fr;
+    R.costSheet=R.costMonth*m;
+    R.travellers=R.students+R.free+R.teachers+R.caretakers;
+    R.occupancy=v.seats>0?R.travellers/v.seats*100:0;
+  }
+  // hired buses that are not in the stop list: cost only, no fees from the list
+  r.extraContract=r.contractExtra>0?{name:`Contract buses not in the stop list (${r.contractExtra})`,type:'Contract',stops:[],km:0,kmSource:'missing',students:0,free:0,teachers:0,caretakers:0,travellers:0,occupancy:0,baseBilled:0,billed:0,inst:0,expected:0,costMonth:r.rentPerBusMonth*fr*r.contractExtra,costSheet:r.rentPerBusMonth*fr*r.contractExtra*m}:null;
+  const sheetSum=r.routes.reduce((a,R)=>a+R.costSheet,0)+(r.extraContract?r.extraContract.costSheet:0);
+  const alloc=R=>r.direct?(sheetSum>0?R.costSheet/sheetSum*r.costUsed:r.costUsed/Math.max(1,r.routes.length)):R.costSheet;
+  for (const R of r.routes){ R.cost=alloc(R); R.result=R.expected-R.cost; }
+  if (r.extraContract){ r.extraContract.cost=alloc(r.extraContract); r.extraContract.result=-r.extraContract.cost; }
+  r.routeCostSum=r.routes.reduce((a,R)=>a+R.cost,0)+(r.extraContract?r.extraContract.cost:0);
+  // ---- business view for one semester (income statement at chart fees and at new fees) ----
+  const det=qq=>{ let bS=0,bT=0,inst=0;
+    for (const s of S){ const Mn=newM(s,qq).M, Sn=Mn*m, Tn=tFeeFor(s,Mn); bS+=Sn*s.students; bT+=Tn*s.teachers; if (instT) inst+=Math.max(0,Sn-Tn)*s.teachers; if (instF) inst+=Sn*s.free; }
+    if (instF) for (const R of r.routes){ const top=routeTop.get(R.name); if (top) inst+=newM(top,qq).M*m*R.caretakers; }
+    const billed=bS+bT, uncollected=billed*(1-keep), income=billed-uncollected+inst;
+    return {bS,bT,billed,uncollected,inst,income,net:income-r.costUsed};
+  };
+  r.biz={chart:det(0),now:det(q)};
+  r.biz.expenses=r.direct?[['Semester cost (entered directly)',r.costUsed]]:[['Diesel',r.fuel*m],['Bus staff salary',r.salary*m],['Road tax',r.roadTax*m],['Insurance',r.insurance*m],['Admin and office',r.admin*m],['Maintenance and repairs',r.maint*m],['Depreciation (non-cash)',r.dep*m],['Contract bus rent',r.rent*m],['Breakdown reserve',r.reserve*m],['Contingency',r.cont*m]];
+  r.biz.expTotal=r.biz.expenses.reduce((a,x)=>a+x[1],0);
+  r.biz.depSem=r.direct?0:r.dep*m;
+  // ---- should the college buy buses instead of hiring? ----
+  const B={};
+  if (r.ownBuses>0&&!r.direct){
+    const ob=r.ownBuses;
+    B.salary=r.salary/ob; B.tax=v.roadTaxPerBus*(1+p(v.otherInc)); B.ins=v.insPerBusYear/12*(1+p(v.otherInc));
+    B.dep=v.busCost*p(v.depRate)/12; B.run=(r.fuel+r.maint)/ob;
+    B.base=B.salary+B.tax+B.ins+B.dep+B.run; B.ownMonth=B.base*(1+r.pctSum);
+    B.rentMonth=r.rentPerBusMonth*(1+(v.pctOnRent?r.pctSum:0));
+    B.saveMonth=B.rentMonth-B.ownMonth; B.saveSem=B.saveMonth*m; B.saveYear=B.saveSem*2;
+    B.payback=B.saveYear>0?v.busCost/B.saveYear:null;
+    B.worth=B.saveMonth>0&&r.contractBuses>0;
+    B.buyAll=B.worth?r.contractBuses:0; B.capitalAll=B.buyAll*v.busCost; B.saveAllSem=B.buyAll*B.saveSem;
+    const gap=-r.biz.chart.net;
+    B.needForBreakEven=gap>0&&B.saveSem>0?Math.ceil(gap/B.saveSem-1e-9):0;
+    B.enough=B.needForBreakEven<=r.contractBuses;
+    const avgFee=r.students>0?r.biz.now.bS/r.students:0; B.avgFee=avgFee;
+    B.breakEvenStudents=avgFee>0&&keep>0?Math.ceil(B.ownMonth*m/(avgFee*keep)-1e-9):null;
+    const ownStudents=r.routes.filter(R=>R.type==='Own').reduce((a,R)=>a+R.students,0);
+    B.avgStudentsOwn=ownStudents/ob;
+  }
+  r.buy=B;
+  // ---- consistency of the base chart ----
+  r.offGrid=[...new Set(r.stopRows.filter(s=>!s.onGrid).map(s=>s.M))];
+  r.offGridStops=r.stopRows.filter(s=>!s.onGrid);
+  r.semMismatch=r.stopRows.filter(s=>s.semMismatch);
+  r.fallStops=[]; for (const R of r.routes) for (let i=1;i<R.stops.length;i++) if (R.stops[i].M<R.stops[i-1].M) r.fallStops.push(`${R.name}: ${R.stops[i].stop}`);
+  const byName=new Map(); for (const s of S){ const k=s.stop.toLowerCase().replace(/[^a-z0-9]/g,''); if(!byName.has(k)) byName.set(k,[]); byName.get(k).push(s); }
+  r.nameClash=[...byName.values()].filter(a=>new Set(a.map(s=>s.M)).size>1).map(a=>a[0].stop);
+  r.repeatSame=[...byName.values()].filter(a=>a.length>1&&new Set(a.map(s=>s.M)).size===1).map(a=>a[0].stop);
+  r.stageValues=[...new Set(S.map(s=>s.M))].sort((a,b)=>a-b);
+  // ---- fare units vs distance (study section 7) ----
+  const D=S.filter(s=>s.km!==null&&s.km!==undefined);
+  r.dist={n:D.length};
+  if (D.length>=3&&new Set(D.map(s=>s.km)).size>=2){
+    const n=D.length, dm=D.reduce((a,s)=>a+s.km,0)/n, km_=D.reduce((a,s)=>a+s.k,0)/n;
+    const sxy=D.reduce((a,s)=>a+(s.km-dm)*(s.k-km_),0), sxx=D.reduce((a,s)=>a+(s.km-dm)**2,0), syy=D.reduce((a,s)=>a+(s.k-km_)**2,0);
+    const beta=sxy/sxx, alpha=km_-beta*dm;
+    const res=D.map(s=>({s,pred:alpha+beta*s.km,e:s.k-(alpha+beta*s.km)}));
+    const sse=res.reduce((a,x)=>a+x.e*x.e,0); const r2=syy>0?1-sse/syy:1; const sd=Math.sqrt(sse/Math.max(1,n-2));
+    r.dist={n,alpha,beta,r2,sd,perKm:U*beta,rows:res.map(x=>({...x,flag:Math.abs(x.e)>Math.max(2*sd,2)}))};
+  }
+  r.lPerBus=r.ownBuses>0&&v.days>0?r.litres/v.days/r.ownBuses:0;
+  r.kmPerBus=r.ownBuses>0?r.dailyKm/r.ownBuses:0;
+  return r;
+}
+function checks(v, r, parsed){
+  const out=[]; const add=(lvl,msg)=>out.push({lvl,msg});
+  if (!r.routes.length){ add('bad','No routes loaded. Load the route and stop list in section 1.'); return out; }
+  if (!(v.semMonths>0)) add('bad','Months in a semester must be more than 0.');
+  if (r.semMismatch.length) add('warn',`${r.semMismatch.length} stop(s) have a semester fee that is not ${v.semMonths} × the monthly fee: ${r.semMismatch.slice(0,6).map(s=>s.stop).join(', ')}. The monthly fee is used.`);
+  else if (parsed&&parsed.hasSem&&parsed.hasMonthly) add('ok',`Every semester fee is exactly ${v.semMonths} × the monthly fee.`);
+  if (r.U>0){
+    if (r.offGrid.length) add('ok',`Fare-unit formula M = ₹${fmt(r.M0)} + ₹${fmt(r.U)} × k fits ${r.stopRows.length-r.offGridStops.length} of ${r.stopRows.length} stops. Off the grid (kept as base values): ${r.offGrid.map(x=>'₹'+fmt(x)).join(', ')} at ${r.offGridStops.slice(0,6).map(s=>s.stop).join(', ')}.`);
+    else add('ok',`Every stop fits the fare-unit formula M = ₹${fmt(r.M0)} + ₹${fmt(r.U)} × k.`);
+  }
+  if (r.fallStops.length) add('warn',`The fee falls along the route at: ${r.fallStops.slice(0,6).join('; ')}. Check the stop order or the fee.`);
+  else add('ok','On every route the fee never falls from one stop to the next.');
+  if (r.nameClash.length) add('warn',`Same stop name with different fees on different routes: ${r.nameClash.join(', ')}.`);
+  if (r.students===0) add('bad','No fee-paying students entered. Enter the number of students at each stop in the CSV (Students column).');
+  if (!r.direct){
+    if (!(v.days>0&&v.days<=31)) add('bad',`Working days must be between 1 and 31 (now ${v.days}).`);
+    if (!(v.kmpl>0)) add('bad','Mileage (km per litre) must be more than 0.');
+    else if (v.kmpl<4||v.kmpl>8) add('warn',`Mileage ${fmt(v.kmpl,2)} km/L is outside the normal 4–8 km/L. Check the fuel log.`);
+    if (r.noKm.length) add('bad',`No route distance for: ${r.noKm.join(', ')}. Add a Route KM value (or stop distances) so fuel can be calculated.`);
+    if (v.depBuses>r.ownBuses) add('bad',`Buses for depreciation (${v.depBuses}) is more than own buses in the list (${r.ownBuses}). Only ${r.ownBuses} are counted.`);
+    if (r.contractBuses>0&&!(v.rent>0)) add('bad',`There are ${r.contractBuses} contract bus(es) but contract rent is 0.`);
+    if (r.contractInput>0&&r.contractInput<r.contractListed) add('warn',`Number of contract buses (${r.contractInput}) is less than the routes marked Contract in the list (${r.contractListed}); ${r.contractListed} are used.`);
+    if (r.contractExtra>0) add('ok',`${r.contractExtra} contract bus(es) are not in the stop list: their rent ₹${fmt(r.extraContract.costSheet)} a semester is included in the cost, but no fees from their students are counted. Add their stops to the list to include those fees.`);
+  } else if (!(v.needDirect>0)) add('bad','Semester cost is set to "Enter the amount directly" but no amount is entered.');
+  if (v.nonPayPct>=100) add('bad','Non-collection must be less than 100%.');
+  const over=r.routes.filter(R=>R.travellers>v.seats);
+  if (over.length) add('bad',`More travellers than seats on: ${over.map(R=>`${R.name} (${R.travellers}/${v.seats})`).join(', ')}.`);
+  const noCare=r.routes.filter(R=>R.caretakers===0);
+  if (noCare.length) add('warn',`No caretaker on: ${noCare.map(R=>R.name).join(', ')}.`);
+  if (r.teachers>0&&r.stageMode){
+    if (!r.stages.length) add('bad','Teacher fee is set to stage rates but no stage rate is entered (section 7).');
+    const nk=r.stopRows.filter(s=>s.teachers>0&&s.tNoKm).length;
+    if (nk) add('warn',`${nk} stop(s) with teachers have no distance, so stage rates by km cannot be applied there; those teachers are charged the student fee. Add Distance KM, or set the stages by chart fee.`);
+    const ov=r.stopRows.filter(s=>s.teachers>0&&s.tOver).length;
+    if (ov) add('warn',`${ov} stop(s) with teachers are farther than the last stage; the last stage rate is used.`);
+  }
+  // revision result
+  if (r.students>0&&r.target>0){
+    if (r.q===0&&!r.short) add('ok',`No increase needed: at the present chart fees the expected collection ₹${fmt(r.expected)} covers the required collection ₹${fmt(r.target)}. Every stop keeps its chart fee${r.surplus>0?` (₹${fmt(r.surplus)} more than needed)`:''}.`);
+    else if (r.reduced) add('warn',`Fees are reduced (reduction allowed): ${r.changed} stops change; expected ₹${fmt(r.expected)} still covers ₹${fmt(r.target)}.`);
+    else add(r.avgChange>0.15?'warn':'ok',`Fees rise by method ${r.method}: ${r.changed} of ${r.stopRows.length} stops change, student fees rise ${fmt(r.chLo*100,1)}% to ${fmt(r.chHi*100,1)}% (average ${fmt(r.avgChange*100,1)}%).`);
+    if (r.short) add('bad',`With the yearly cap of ${fmt(r.capPct,1)}%, collection ₹${fmt(r.expected)} is ₹${fmt(r.shortfall)} short of the required collection. Meet the shortfall from contingency or by the institution${r.nextGap!==null?`; about ${fmt(r.nextGap*100,1)}% is still to recover next year`:''}.`);
+    else add(r.surplus>=-0.5?'ok':'bad',`Expected collection ₹${fmt(r.expectedUsers)}${r.instTotal>0?` + institution ₹${fmt(r.instTotal)}`:''} = ₹${fmt(r.expected)} ${r.surplus>=-0.5?'covers':'does NOT cover'} the required collection ₹${fmt(r.target)}.`);
+    if (r.cappedStops&&!r.short) add('warn',`${r.cappedStops} stop(s) were held at the yearly cap of ${fmt(r.capPct,1)}%.`);
+  }
+  if (r.free+r.caretakers>0) add('ok',`Free travel: ${fmt(r.free)} free students + ${fmt(r.caretakers)} caretakers, worth ₹${fmt(r.freeValue)} a semester, paid by ${v.freeBy==='institution'?'the institution':'fee payers through the fee'}.`);
+  if (!r.direct&&Math.abs(r.routeCostSum-r.semCost)>1) add('bad',`Route costs (₹${fmt(r.routeCostSum)}) do not add up to the semester cost (₹${fmt(r.semCost)}).`);
+  const loss=r.routes.filter(R=>R.result<0);
+  if (loss.length) add('warn',`${loss.length} route(s) do not cover their own cost: ${loss.map(R=>R.name).join(', ')}.`);
+  if (r.dist.alpha!==undefined){
+    add(r.dist.r2<0.6?'warn':'ok',`Fare units against distance (${r.dist.n} stops): k = ${fmt(r.dist.alpha,2)} + ${fmt(r.dist.beta,3)} × km, R² = ${fmt(r.dist.r2,2)}. Hidden charge ≈ ₹${fmt(r.dist.perKm,1)} per km per month.`);
+    const fl=r.dist.rows.filter(x=>x.flag); if (fl.length) add('warn',`Stops charged far from what their distance suggests: ${fl.slice(0,8).map(x=>x.s.stop).join(', ')}.`);
+  }
+  return out;
+}
+function fmt(n,d=0){
+  if (n===null||n===undefined||!isFinite(n)) return '–';
+  return Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+const CHART=[
+ ['Karunagappally via Kollam',110,[['Cheerenkavu',1200],['Kundara',1560],['Keralapuram',1740],['Karikode',1740],['Shappumukku',1980],['Kallumthazham',1980],['Kadappakada',1980],['Kollam',1980],['High School Junction',2160],['Collectrate',2160],['Nellimukku',2160],['Mulankadakom',2280],['Vellayittambalam',2280],['Medayil Mukku',2280],['Ramankulangara',2280],['Vallikeezhu',2280],['Poovan Puzha',2280],['Kavanad',2280],['Chavara',2760],['Kottankulangara',2880],['Titanium',2880],['Edapallykotta',3480],['Vettamukku',3480],['Kuttivattom',3804],['Karunagappally',3804]]],
+ ['Punalur',70,[['Cheerenkavu',1200],['Ezhukone',1200],['Ambalathumkala',1200],['Neduvathoor',1740],['Kottarakara',1740],['Kizhakketheruvu',1980],['Chengamanad',2160],['Kunnicode',2160],['Vilakudy',2760],['Elampal',2760],['Punalur',2760]]],
+ ['Anchalumood',32,[['Elamballoor',1740],['Nathrikkal',1980],['Vellimon',1980],['Perinad Village',1980],['Thannikkamukku',2160],['Pavoor Vayal',2160],['Anchalumood CKP Jn',2160],['Kadavoor',2220],['Mathilil',2220],['Kadavoor Pally',2220],['Thevally',2280]]],
+ ['By Pass',72,[['Kallumthazham',1980],['Ayathil',1980],['Palathara',2100],['Mevaram',2100],['Thattamala',2100],['Pazhayattin Kuzhy',2100],['Kollam Pallimukku',2100],['Madanada',2100],['Polayathode',2100],['Kapalandi Mukku',2100],['Chemamukku',2100]]],
+ ['Anchal',83,[['Kottarakara',1740],['Panaveli',2160],['Valakom',2160],['Ayoor',2760],['Anchal',3480]]],
+ ['Bharanikavu',36,[['Poriyikal',1200],['Pavithreswaram',1200],['Puthoor',1560],['Pangodu',1980],['Nediyavila',1980],['Cinema Parambu',1980],['Bharanikavu',1980],['Kadapuzha',1980]]],
+ ['Paripally',71,[['Kundra Hospital Jn',1560],['Punnamukku',1560],['Dalmia Jn',1560],['Perumpuzha',1560],['Society Jn',1980],['Pala Mukku',1980],['Shappu Mukku',1980],['Moideen Mukku',1980],['Cashew Factory',2100],['Vadakke Mukku',2100],['Kannanaloor',2100],['Thazhuthala',2100],['Kottiyam',2100],['Thirumukku',2880],['Chathanoor',2880],['Kalluvathukal',2880],['Paripally',2880]]]];
+const COLLECTION={'Karunagappally via Kollam':716400,'Punalur':632600,'Anchalumood':310200,'By Pass':452500,'Anchal':694000,'Bharanikavu':425500,'Paripally':568600};
+function sampleCSV(){
+  // Sample students: per route, about last semester's collection ÷ average semester fee, capped so the bus stays within 40 seats.
+  const out=['Route,Bus Type,Route KM,Stop,Distance KM,Base Monthly Fee,Semester Fee,Students,Free Students,Teachers,Caretakers'];
+  CHART.forEach(([route,rkm,stops],ri)=>{
+    const avg=stops.reduce((a,x)=>a+x[1]*5,0)/stops.length;
+    const free=ri%2===0?2:0, teach=ri%3===0?1:0;
+    const total=Math.min(40-1-free-teach,Math.round(COLLECTION[route]/avg));
+    const base=Math.floor(total/stops.length); let extra=total-base*stops.length;
+    stops.forEach(([stop,fee],j)=>{
+      let st=base; if (j>=stops.length-extra) st+=1;
+      out.push(`${route},Own,${j===0?rkm:''},${stop},,${fee},${fee*5},${st},${free&&j===stops.length-2?free:''},${teach&&j===1?teach:''},${j===0?1:''}`);
+    });
+  });
+  return out.join('\n');
+}
+/* ===== CALC-END ===== */
+if (typeof module!=='undefined') module.exports={parseCSV,calc,checks,fmt,sampleCSV,CHART,COLLECTION};
+
+</script>
+
+<script>
+const LOGO="data:image/jpeg;base64,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";
+const APP_VERSION="2.1", APP_VERSION_NAME="Base Fee Edition", APP_RELEASE="23 Nov 2026";
+const VERSION_TEXT=`Version ${APP_VERSION} · ${APP_VERSION_NAME} · ${APP_RELEASE}`;
+const DEFAULTS={days:25,seats:40,semMonths:5,kmFactor:1,extraKm:0,kmpl:5.5,diesel:103,
+  salary:107000,roadTaxPerBus:1600,insPerBusYear:36000,admin:11000,maint:27600,
+  busCost:1800000,depRate:10,depBuses:7,rent:37500,rentBasis:'month',
+  fuelInc:0,salaryInc:0,otherInc:0,rentInc:0,reservePct:2,contPct:5,pctOnRent:false,
+  caretakersPerBus:1,freeBy:'shared',teacherMode:'stage',teacherStageBy:'fee',teacherBasis:'month',teacherSub:50,teacherSubBy:'shared',
+  st1Km:1740,st1Rate:500,st2Km:2280,st2Rate:750,st3Km:0,st3Rate:1000,st4Km:0,st4Rate:0,st5Km:0,st5Rate:0,
+  contractCount:0,needMode:'sheet',needDirect:0,profit:0,method:'A',roundTo:10,capPct:0,allowReduce:false,unitBase:1200,unitStep:60,nonPayPct:0,lastCollection:3799800};
+const SELECTS={
+  rentBasis:[['month','Per bus per month'],['day','Per bus per day']],
+  roundTo:[['1','₹1'],['5','₹5'],['10','₹10'],['50','₹50'],['100','₹100']],
+  freeBy:[['shared','Shared in paying fees'],['institution','Paid by institution']],
+  teacherSubBy:[['shared','Shared in student fees'],['institution','Paid by institution']],
+  teacherMode:[['stage','Stage rates'],['percent','Percentage of student fee']],
+  teacherStageBy:[['fee','By chart fee of the stop'],['km','By distance (km)']],
+  teacherBasis:[['month','Per month'],['semester','Per semester']],
+  needMode:[['sheet','From the cost sheet (sections 2–6)'],['direct','Enter the amount directly']],
+  method:[['A','A – same % for every stop (recommended)'],['B','B – raise only the per-unit step'],['C','C – same amount added for every stop']]};
+const SECTIONS=[
+ {n:2,title:'Operation, distance and fuel',ml:'പ്രവർത്തനം, ദൂരം, ഡീസൽ',note:"Own and contract buses are counted from the stop list (one bus per route). Daily km = Route KM × trips + extra empty running.",fields:[
+  ['days','Working days per month','പ്രവൃത്തി ദിവസം','Days the buses run in an average month (exclude holidays).','days',1],
+  ['seats','Seats per bus','സീറ്റ്','Average seating capacity. Used to check overloading (students + free + teachers + caretakers).','seats',1],
+  ['kmFactor','Trips over the Route KM per day','ദിവസം യാത്ര','1 if Route KM is already the full day\'s running (as in the fee list). 2 if Route KM is the one-way distance.','× route km',0.5],
+  ['extraKm','Extra empty km per bus per day','അധിക കി.മീ.','Garage to first stop, fuel station, etc.','km/bus/day',1],
+  ['kmpl','Mileage','മൈലേജ്','Kilometres per litre from fuel bills ÷ km run.','km/L',0.1],
+  ['diesel','Diesel price','ഡീസൽ വില','Current price per litre.','₹/litre',0.01]]},
+ {n:3,title:'Staff and fixed costs',ml:'ശമ്പളവും സ്ഥിരച്ചെലവും',note:'For the buses in the stop list only. From the salary register, tax receipts and insurance policies.',fields:[
+  ['salary','Bus staff salary (these buses)','ശമ്പളം','Total monthly salary of drivers, attenders and caretakers of the own buses in the list.','₹/month',1],
+  ['roadTaxPerBus','Road tax per bus','റോഡ് ടാക്സ്','Monthly road tax for one bus (quarterly amount ÷ 3).','₹/bus/month',1],
+  ['insPerBusYear','Insurance per bus per year','ഇൻഷുറൻസ്','Annual premium of one bus (average).','₹/bus/year',1],
+  ['admin','Admin and office share','ഓഫീസ് ചെലവ്','Share of transport office cost for these buses.','₹/month',1],
+  ['maint','Maintenance and repairs','അറ്റകുറ്റപ്പണി','Average monthly workshop bills for these buses (yearly costs ÷ 12).','₹/month',1]]},
+ {n:4,title:'Depreciation',ml:'മൂല്യശോഷണം',note:'Bus cost × rate ÷ 12 for each bus still being depreciated.',fields:[
+  ['busCost','Average cost of one bus','ബസിന്റെ വില','Purchase cost of an average bus.','₹',1000],
+  ['depRate','Depreciation rate per year','നിരക്ക്','Rate used in the accounts.','% / year',0.5],
+  ['depBuses','Buses still being depreciated','എണ്ണം','Own buses not yet fully written off.','buses',1]]},
+ {n:5,title:'Contract buses',ml:'കോൺട്രാക്ട് ബസുകൾ',note:'Number of hired buses and the rent for ONE bus. Rent per month × number of contract buses = monthly contract cost.',fields:[
+  ['contractCount','Number of contract buses','കോൺട്രാക്ട് ബസുകളുടെ എണ്ണം','Total hired buses this semester. Routes marked Contract in the stop list are counted automatically; enter the full number here to include hired buses whose stops are not in the list (their rent is costed, but their fees are not counted).','buses',1],
+  ['rent','Rent for one contract bus','ഒരു ബസിന്റെ വാടക','From the rental agreement.','₹',100],
+  ['rentBasis','Rent is charged','വാടക കണക്ക്','Per day: rent × working days. Per month: rent as entered.','','','select']]},
+ {n:6,title:'Percentages for estimate and forecast',ml:'ശതമാനങ്ങൾ',note:"Increase lines raise a cost for the next period (0 = today's cost). Reserve and contingency are added on top of the operating sub total. Profit is entered as an amount in section 8.",fields:[
+  ['fuelInc','Expected diesel price increase','ഡീസൽ വില വർധന','Forecast change in diesel price.','%',0.5],
+  ['salaryInc','Expected salary increase','ശമ്പള വർധന','Forecast increment or DA rise.','%',0.5],
+  ['otherInc','Expected increase in other costs','മറ്റ് ചെലവ് വർധന','Applies to road tax, insurance, admin and maintenance.','%',0.5],
+  ['rentInc','Expected contract rent increase','വാടക വർധന','Forecast change in contract rent.','%',0.5],
+  ['reservePct','Breakdown / alternate vehicle reserve','ബദൽ വാഹനം','Kept aside to hire a bus when one breaks down.','% of sub total',0.5],
+  ['contPct','Contingency','കണ്ടിജൻസി','Cover for unexpected costs.','% of sub total',0.5],
+  ['pctOnRent','Also apply these % to contract rent','','Tick only if reserve and contingency should also be charged on hired-bus rent.','','','check']]},
+ {n:7,title:'Free travel and teacher fees',ml:'സൗജന്യ യാത്രയും അധ്യാപക ഫീസും',note:'Free students and teachers come from the stop list. Teachers pay fixed stage rates or a percentage of the student fee.',extra:'stages',fields:[
+  ['caretakersPerBus','Caretakers per bus (default)','കെയർടേക്കർ','Fully free. Used for every route that has no Caretakers value in the list.','persons/bus',1],
+  ['freeBy','Cost of free students and caretakers','സൗജന്യ യാത്രയുടെ ചെലവ്','Shared: covered by the fees of paying travellers. Institution: the institution pays their chart fee.','','','select'],
+  ['teacherMode','Teacher fee method','അധ്യാപക ഫീസ് രീതി','Stage rates from the table below, or the student fee less a percentage.','','','select'],
+  ['teacherStageBy','Stages are set','സ്റ്റേജ് അടിസ്ഥാനം','By chart fee: "Up to" means the stop\'s base monthly fee (works without distances). By distance: "Up to" means km and needs Distance KM in the list.','','','select'],
+  ['teacherBasis','Stage rates are','സ്റ്റേജ് നിരക്ക്','Per month: multiplied by months in the semester. Per semester: used as entered.','','','select'],
+  ['teacherSub','Teacher reduction (percentage method)','അധ്യാപക ഇളവ്','Percentage reduced from the student fee. (Percentage method only.)','%',1],
+  ['teacherSubBy','Difference between student and teacher fee','വ്യത്യാസം ആര് വഹിക്കും','Shared: covered by student fees. Institution: the institution pays it.','','','select']]},
+ {n:8,title:'Fee revision rules',ml:'ഫീസ് പരിഷ്കരണ നിയമങ്ങൾ',note:'The chart fees are the base and are never recalculated. They change only by the revision method below, and only when the required collection is more than the present fees collect.',fields:[
+  ['needMode','Semester cost comes from','ആവശ്യമായ തുക','Cost sheet: worked out from sections 2–6. Direct: type the semester cost yourself (for example from the accounts or the distance calculator).','','','select'],
+  ['needDirect','Semester cost (direct entry)','സെമസ്റ്റർ ചെലവ്','Used only when "Enter the amount directly" is chosen.','₹/semester',1000],
+  ['profit','Required profit per semester','ആവശ്യമായ ലാഭം','Added to the cost. 0 = fees cover cost only.','₹/semester',1000],
+  ['method','Revision method','പരിഷ്കരണ രീതി','A keeps the present near–far relationship. B raises far stops more. C raises near stops more (in %).','','','select'],
+  ['roundTo','Round each monthly increase up to','റൗണ്ട്','Only the increase is rounded, so a stop with no increase keeps its exact chart fee.','','','select'],
+  ['capPct','Largest increase per student this year','പരമാവധി വർധന','0 = no limit. If the need is larger, the rest is shown as a shortfall to be met from contingency or by the institution.','%',0.5],
+  ['allowReduce','Allow fees to come down','ഫീസ് കുറയ്ക്കാം','Tick only if fees may be reduced when they collect more than needed. Not ticked = chart fees are the floor.','','','check'],
+  ['unitBase','Fare formula: starting fee M₀','അടിസ്ഥാന ഫീസ്','From the study: monthly fee = M₀ + step × k. ₹1,200 for the June 2026 chart.','₹/month',10],
+  ['unitStep','Fare formula: step per fare unit','ഫെയർ യൂണിറ്റ്','₹60 for the June 2026 chart. Used by method B and the fare-unit columns.','₹/month',5],
+  ['semMonths','Months in a semester','സെമസ്റ്റർ മാസങ്ങൾ','Semester fee = monthly fee × this.','months',1],
+  ['nonPayPct','Concession / non-collection','ഇളവ് / പിരിയാത്തത്','Share of fees expected not to be collected.','%',0.5],
+  ['lastCollection','Actual collection last semester (these routes)','കഴിഞ്ഞ സെമസ്റ്റർ','For comparison only. Not used to calculate fees.','₹',100]]}
+];
+const FIELD={}; SECTIONS.forEach(s=>s.fields.forEach(f=>FIELD[f[0]]={sec:s.n,secTitle:s.title,label:f[1],unit:f[4],kind:f[6]}));
+const STAGEKEYS=[]; for (let i=1;i<=5;i++){ FIELD['st'+i+'Km']={sec:7,label:`Teacher stage ${i} – up to (blank = and above)`,unit:''}; FIELD['st'+i+'Rate']={sec:7,label:`Teacher stage ${i} – rate`,unit:'₹'}; STAGEKEYS.push('st'+i+'Km','st'+i+'Rate'); }
+const ORDER=SECTIONS.flatMap(sec=>sec.fields.map(f=>f[0]).concat(sec.extra==='stages'?STAGEKEYS:[]));
+
+const $=id=>document.getElementById(id);
+$('inputs').innerHTML=SECTIONS.map(s=>`
+ <section class="card"><h2><span class="n">${s.n}</span>${s.title} <span class="ml">${s.ml}</span></h2>
+ <p class="sec-note">${s.note}</p>
+ <div class="tbl"><table><thead><tr><th>Item</th><th>What to enter</th><th>Value</th><th>Unit</th></tr></thead><tbody>
+ ${s.fields.map(([id,label,ml,desc,unit,step,kind])=>{
+   let ctl;
+   if (kind==='select') ctl=`<select id="f_${id}">${SELECTS[id].map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select>`;
+   else if (kind==='check') ctl=`<label class="chk"><input type="checkbox" id="f_${id}"> Yes</label>`;
+   else ctl=`<input type="number" id="f_${id}" step="${step}" min="0" inputmode="decimal">`;
+   return `<tr><td class="item"><label for="f_${id}">${label}</label>${ml?`<span class="ml">${ml}</span>`:''}</td><td class="desc">${desc}</td><td class="val">${ctl}</td><td class="unit">${unit}</td></tr>`;
+ }).join('')}
+ </tbody></table></div>${s.extra==='stages'?`
+ <div class="stagebox"><h3>Teacher stage rates <span class="ml">അധ്യാപക സ്റ്റേജ് നിരക്കുകൾ</span></h3>
+ <p class="sec-note">Up to 5 stages. A teacher pays the rate of the first stage that covers their stop. "Up to" is the stop's chart monthly fee or its distance in km, as chosen above. Leave "Up to" blank on the last stage to mean "and above". Leave a rate blank to skip that stage.</p>
+ <div class="tbl"><table class="stages"><thead><tr><th>Stage</th><th id="stUpHead">Up to</th><th>Rate (₹)</th><th>Applies to</th></tr></thead><tbody>
+ ${[1,2,3,4,5].map(i=>`<tr><td class="item">Stage ${i}</td><td class="val"><input type="number" id="f_st${i}Km" step="10" min="0" inputmode="decimal" placeholder="and above"></td><td class="val"><input type="number" id="f_st${i}Rate" step="50" min="0" inputmode="decimal" placeholder="—"></td><td class="desc" id="stl${i}"></td></tr>`).join('')}
+ </tbody></table></div></div>`:''}</section>`).join('');
+
+const KEYS=Object.keys(DEFAULTS);
+const TEXTKEYS=['rentBasis','freeBy','teacherSubBy','teacherMode','teacherStageBy','teacherBasis','needMode','method'];
+const CHECKKEYS=['pctOnRent','allowReduce'];
+function read(){
+  const v={};
+  for (const k of KEYS){ const el=$('f_'+k);
+    if (TEXTKEYS.includes(k)) v[k]=el.value; else if (CHECKKEYS.includes(k)) v[k]=el.checked; else v[k]=el.value===''?0:Number(el.value); }
+  return v;
+}
+function write(vals){
+  for (const k of KEYS){ const el=$('f_'+k);
+    if (CHECKKEYS.includes(k)) el.checked=!!vals[k];
+    else if (TEXTKEYS.includes(k)||k==='roundTo') el.value=String(vals[k]??DEFAULTS[k]);
+    else if (STAGEKEYS.includes(k)) el.value=Number(vals[k])>0?vals[k]:'';
+    else el.value=vals[k]??''; }
+}
+const R=n=>'₹'+fmt(n);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+let isSample=false;
+let STATE=null;
+const METHOD_TXT={A:'A – same % for every stop',B:'B – raise only the per-unit step',C:'C – same amount for every stop'};
+
+/* ---------- report model (shared by screen, print, PDF, Excel) ---------- */
+const N=(n,f='int')=>({n,f});
+function costRows(v,r){
+  const inc=x=>x?` × (1 + ${x}%)`:'';
+  const ex=v.pctOnRent?'sub total + contract rent':'sub total';
+  const rows=[
+   {c:['Fuel (diesel)',`(${fmt(r.ownRouteKm)} route km × ${v.kmFactor} + ${v.extraKm} × ${r.ownBuses} buses) = ${fmt(r.dailyKm,1)} km/day × ${v.days} days = ${fmt(r.kmMonth)} km ÷ ${v.kmpl} km/L = ${fmt(r.litres,1)} L × ₹${fmt(r.dieselRate,2)}`,N(r.fuel,'rs2')]},
+   {c:['Bus staff salary',`₹${fmt(v.salary)}${inc(v.salaryInc)}`,N(r.salary,'rs2')]},
+   {c:['Road tax',`₹${fmt(v.roadTaxPerBus)} × ${r.ownBuses} buses${inc(v.otherInc)}`,N(r.roadTax,'rs2')]},
+   {c:['Insurance',`₹${fmt(v.insPerBusYear)} × ${r.ownBuses} buses ÷ 12${inc(v.otherInc)}`,N(r.insurance,'rs2')]},
+   {c:['Admin and office',`₹${fmt(v.admin)}${inc(v.otherInc)}`,N(r.admin,'rs2')]},
+   {c:['Maintenance',`₹${fmt(v.maint)}${inc(v.otherInc)}`,N(r.maint,'rs2')]},
+   {c:['Depreciation',`₹${fmt(v.busCost)} × ${v.depRate}% × ${r.depBusesUsed} buses ÷ 12`,N(r.dep,'rs2')]},
+   {k:'sub',c:['A. Operating sub total (own buses)','Sum of the seven lines above',N(r.sub,'rs2')]},
+   {c:['Contract bus rent',`₹${fmt(r.rentPerBusMonth,2)} per bus per month × ${r.contractBuses} buses (${r.contractListed} in the stop list${r.contractExtra?` + ${r.contractExtra} not in the list`:''})`,N(r.rent,'rs2')]},
+   {c:['Breakdown reserve',`${v.reservePct}% × ₹${fmt(r.pctBase)} (${ex})`,N(r.reserve,'rs2')]},
+   {c:['Contingency',`${v.contPct}% × ₹${fmt(r.pctBase)} (${ex})`,N(r.cont,'rs2')]},
+   {k:'sub',c:['B. Extras','Rent + reserve + contingency',N(r.extras,'rs2')]},
+   {k:'total',c:['GRAND TOTAL per month','A + B',N(r.total,'rs2')]},
+   {k:'sub',c:['Cost per semester (cost sheet)',`₹${fmt(r.total,2)} × ${v.semMonths} months`,N(r.semCost,'rs2')]}];
+  if (r.direct) rows.push({c:['Semester cost used','Entered directly in section 8 (cost sheet above is for reference)',N(r.costUsed,'rs2')]});
+  rows.push({c:['Required profit per semester','Section 8',N(r.profitReq,'rs2')]});
+  rows.push({k:'total',c:['Required collection per semester (C_req)','semester cost + required profit',N(r.target,'rs2')]});
+  return rows;
+}
+function rateRows(v,r){
+  const rows=[
+   {c:['Required collection (C_req)','semester cost + required profit',N(r.target,'rs2')]},
+   {c:['Billing at chart fees, students only (B_now)',`Σ (students × chart semester fee) = Σ n·${v.semMonths}·M`,N(r.baseBilledStudents,'rs')]},
+   {c:['Collection at chart fees (all)',`(students + teachers) × (1 − ${v.nonPayPct}%) + institution share`,N(r.baseCollect,'rs')]},
+   {k:'sub',c:['Increase needed, study formula','g = C_req ÷ (κ × B_now) − 1, before rounding, students only',r.gStudy>0?`${fmt(r.gStudy*100,2)}%`:'none']},
+   {c:['Revision method',METHOD_TXT[r.method],r.method]}];
+  if (r.method==='A') rows.push({c:['Increase applied (g)','M_new = M + increase rounded up to ₹'+v.roundTo+', increase = g × M',r.short?`held at the ${fmt(r.capPct,1)}% cap`:`${fmt(r.q*100,3)}%`]});
+  if (r.method==='B') rows.push({c:['Extra per fare unit (Δu)',`M_new = M + Δu × k; new step = ₹${fmt(r.U)} + Δu`,'₹'+fmt(r.q,2)]});
+  if (r.method==='C') rows.push({c:['Amount added (Δ)','M_new = M + Δ, rounded up to ₹'+v.roundTo,'₹'+fmt(r.q,2)+' / month']});
+  rows.push(
+   {c:['Largest increase allowed this year',r.capPct>0?'Section 8':'no limit',r.capPct>0?fmt(r.capPct,1)+'%':'–']},
+   {c:['Stops whose fee changes',`of ${r.stopRows.length} stops`,N(r.changed)]},
+   {c:['Student fee change',`lowest – highest`,`${fmt(r.chLo*100,1)}% – ${fmt(r.chHi*100,1)}%`]},
+   {k:'sub',c:['New student fee range (semester)','lowest – highest stop',`₹${fmt(r.feeLo)} – ₹${fmt(r.feeHi)}`]},
+   {c:['Teacher fee',r.stageMode?`stage rates ${r.stageByFee?'by chart fee':'by distance'}, per ${v.teacherBasis==='month'?`month × ${v.semMonths}`:'semester'}`:`student fee × (1 − ${v.teacherSub}%)`,r.stageMode?'stage rates':`${fmt(100-v.teacherSub,1)}%`]},
+   {c:['Billed to students','Σ (new semester fee × students)',N(r.billedS,'rs')]},
+   {c:['Billed to teachers','Σ (teacher fee × teachers)',N(r.billedT,'rs')]},
+   {c:['Expected from fee payers',`billed × (1 − ${v.nonPayPct}%)`,N(r.expectedUsers,'rs2')]},
+   {c:['Institution share',`${v.freeBy==='institution'?'free travel':''}${v.freeBy==='institution'&&v.teacherSubBy==='institution'?' + ':''}${v.teacherSubBy==='institution'?'teacher fee difference':''}${v.freeBy!=='institution'&&v.teacherSubBy!=='institution'?'none':''}`,N(r.instTotal,'rs')]},
+   {k:'total',c:['Total expected','fee payers + institution',N(r.expected,'rs2')]},
+   {c:[r.short?'Shortfall this year':'Extra over required collection',r.short?'required collection − total expected (meet from contingency / institution)':'total expected − required collection',N(r.short?r.shortfall:r.surplus,'rs2')]},
+   {k:'sub',c:['Profit this semester','total expected − semester cost',N(r.profit,'rs2')]},
+   {c:['Value of free travel',`${fmt(r.free)} free students + ${fmt(r.caretakers)} caretakers at their stop fee`,N(r.freeValue,'rs')]},
+   {c:['Last semester collection (comparison only)','Section 8',N(v.lastCollection,'rs')]});
+  if (r.nextGap!==null) rows.push({c:['Increase still to recover next year','(1 + g) ÷ (1 + cap) − 1',`${fmt(r.nextGap*100,2)}%`]});
+  return rows;
+}
+const kTxt=s=>s.onGrid?fmt(s.k):fmt(s.k,1);
+function stopTable(v,r){
+  const head=['Route','Type','Stop','Fare units k','Chart monthly (₹)','Chart semester (₹)','New monthly (₹)','New semester (₹)','Change','Students','Free','Teachers','Teacher fee / sem (₹)','Billed (₹)'];
+  const rows=r.stopRows.map(s=>({c:[s.route,s.type,s.stop,s.onGrid?N(s.k):N(s.k,'dec1'),N(s.M,'rs'),N(s.semBase,'rs'),N(s.Mn,'rs'),N(s.Sn,'rs'),s.inc?N(s.change,'pct'):'same'+(s.capped?' (cap)':''),N(s.students),N(s.free),N(s.teachers),s.teachers?N(s.tFee,'rs'):'–',N(s.billed,'rs')],pos:s.inc<0?[8]:[],neg:s.inc>0?[8]:[]}));
+  const foot={k:'total',c:['Total','','','','','','','','',N(r.students),N(r.free),N(r.teachers),'',N(r.billed,'rs')]};
+  return {head,num:[3,4,5,6,7,8,9,10,11,12,13],rows,foot,group:2,bold:7};
+}
+function routeTable(v,r){
+  const head=['Route','Type','Stops','Route KM','Students','Free','Teachers','Caretakers','Seats used','Billing at chart fees (₹)','New fees expected (₹)','Institution share (₹)','Route cost (₹)','Surplus / loss (₹)'];
+  const rows0=r.routes.map(R=>({c:[R.name,R.type,N(R.stops.length),R.kmSource==='missing'?'–':N(R.km,'dec1'),N(R.students),N(R.free),N(R.teachers),N(R.caretakers),N(R.occupancy/100,'pct0'),N(R.baseBilled,'rs'),N(R.billed*r.keep,'rs'),N(R.inst,'rs'),N(R.cost,'rs'),N(R.result,'rs')],neg:R.result<0?[13]:[],pos:R.result>=0?[13]:[]}));
+  const X=r.extraContract; const rows=X?rows0.concat([{c:[X.name,'Contract',N(0),'–',N(0),N(0),N(0),N(0),'–',N(0,'rs'),N(0,'rs'),N(0,'rs'),N(X.cost,'rs'),N(X.result,'rs')],neg:[13]}]):rows0;
+  const foot={k:'total',c:['Total','',N(r.stopRows.length),N(r.ownRouteKm,'dec1'),N(r.students),N(r.free),N(r.teachers),N(r.caretakers),'',N(r.baseBilledStudents,'rs'),N(r.expectedUsers,'rs'),N(r.instTotal,'rs'),N(r.routeCostSum,'rs'),N(r.expected-r.routeCostSum,'rs')]};
+  return {head,num:[2,3,4,5,6,7,8,9,10,11,12,13],rows,foot};
+}
+function stageTable(v,r){
+  const vals=r.stageValues;
+  const rows=vals.map((M,i)=>{ const ss=r.stopRows.filter(s=>s.M===M); const s0=ss[0];
+    return {c:[N(i+1),s0.onGrid?N(s0.k):N(s0.k,'dec1'),N(M,'rs'),N(M*v.semMonths,'rs'),N(s0.Mn,'rs'),N(s0.Sn,'rs'),s0.inc?N(s0.change,'pct'):'same',N(ss.length),N(ss.reduce((a,s)=>a+s.students,0))]}; });
+  return {head:['Stage','Fare units k','Chart monthly (₹)','Chart semester (₹)','New monthly (₹)','New semester (₹)','Change','Stops','Students'],num:[0,1,2,3,4,5,6,7,8],rows};
+}
+function distTable(v,r){
+  if (r.dist.alpha===undefined) return null;
+  const rows=r.dist.rows.map(x=>({c:[x.s.route,x.s.stop,N(x.s.km,'dec1'),x.s.onGrid?N(x.s.k):N(x.s.k,'dec1'),N(x.pred,'dec1'),N(x.e,'dec1'),x.flag?'Review':''],neg:x.flag?[6]:[]}));
+  return {head:['Route','Stop','Distance km','Fare units k','k from distance','Difference','Note'],num:[2,3,4,5],rows};
+}
+function inputRows(v,r){
+  const rows=[{c:['List','Routes (own / contract)',`${r.routes.length} (${r.ownBuses} / ${r.contractBuses})`,'routes']},
+    {c:['List','Stops',N(r.stopRows.length),'stops']},
+    {c:['List','Fare stages (different chart fees)',N(r.stageValues.length),'stages']},
+    {c:['List','Fee-paying students',N(r.students),'students']},
+    {c:['List','Free students',N(r.free),'students']},
+    {c:['List','Teachers',N(r.teachers),'teachers']},
+    {c:['List / 7','Caretakers (all buses)',N(r.caretakers),'persons']},
+    {c:['List','Total Route KM (own buses)',N(r.ownRouteKm,'dec1'),'km']}];
+  for (const k of ORDER){
+    const F=FIELD[k]; let val=v[k];
+    if (F.kind==='select') val=(SELECTS[k].find(o=>o[0]===String(v[k]))||[0,v[k]])[1];
+    else if (F.kind==='check') val=v[k]?'Yes':'No';
+    else if (STAGEKEYS.includes(k)&&!(v[k]>0)) val=k.endsWith('Km')&&v[k.replace('Km','Rate')]>0?'and above':'—';
+    else val=N(v[k],Number.isInteger(v[k])?'int':'dec2');
+    rows.push({c:[String(F.sec),F.label,val,STAGEKEYS.includes(k)&&k.endsWith('Km')?(v.teacherStageBy==='km'?'km':'₹/month chart fee'):(F.unit||'')]});
+  }
+  return rows;
+}
+function revIntro(v,r){
+  const base=`Base = June 2026 chart fee of each stop (M). Fare formula from the study: M = ₹${fmt(r.M0)} + ₹${fmt(r.U)} × k.`;
+  if (r.q===0&&!r.short) return `${base} The present fees collect ₹${fmt(r.expected)} against ₹${fmt(r.target)} needed, so no increase is needed and every stop keeps its chart fee.`;
+  const how=r.method==='A'?`each fee rises by ${fmt(r.q*100,2)}%`:r.method==='B'?`each fee rises by ₹${fmt(r.q,2)} per fare unit`:`₹${fmt(r.q,2)} is added to each monthly fee`;
+  return `${base} Method ${r.method}: ${how}; the monthly increase is rounded up to ₹${v.roundTo}${r.capPct>0?`, and limited to ${fmt(r.capPct,1)}% this year`:''}. New semester fee = new monthly fee × ${v.semMonths}.`;
+}
+function businessSection(v,r){
+  const b=r.biz, B=r.buy, ch=b.chart, nw=b.now, m=v.semMonths;
+  const revised=r.q!==0||r.short;
+  const pl=x=>x>=0?'surplus':'deficit';
+  const marg=x=>x.income>0?x.net/x.income*100:0;
+  const blocks=[];
+  // 1. verdict
+  let verdict=`For one semester, the buses in this list cost ₹${fmt(r.costUsed)}. At the present chart fees they bring in ₹${fmt(ch.income)}, a ${pl(ch.net)} of ₹${fmt(Math.abs(ch.net))} (${fmt(Math.abs(marg(ch)),1)}% of income).`;
+  if (revised) verdict+=` After the fee revision (method ${r.method}, ${r.changed} stops change) the result is a ${pl(nw.net)} of ₹${fmt(Math.abs(nw.net))}.`;
+  else verdict+=` No fee revision is needed, so the new fees are the same as the chart.`;
+  if (r.profitReq>0) verdict+=` The required profit is ₹${fmt(r.profitReq)}.`;
+  blocks.push({type:'para',text:verdict});
+  // 2. income and expenditure
+  const rows=[];
+  rows.push({k:'sub',c:['INCOME','','']});
+  rows.push({c:['Student fees billed',N(ch.bS,'rs'),N(nw.bS,'rs')]});
+  rows.push({c:['Teacher fees billed',N(ch.bT,'rs'),N(nw.bT,'rs')]});
+  rows.push({c:[`Less: fees not collected (${fmt(v.nonPayPct,1)}%)`,N(ch.uncollected?-ch.uncollected:0,'rs'),N(nw.uncollected?-nw.uncollected:0,'rs')]});
+  rows.push({c:['Institution share (free travel / teacher difference)',N(ch.inst,'rs'),N(nw.inst,'rs')]});
+  rows.push({k:'total',c:['Total income',N(ch.income,'rs'),N(nw.income,'rs')]});
+  rows.push({k:'sub',c:['EXPENDITURE','','']});
+  for (const [name,val] of b.expenses) rows.push({c:[name,N(val,'rs'),N(val,'rs')]});
+  rows.push({k:'total',c:['Total expenditure',N(b.expTotal,'rs'),N(b.expTotal,'rs')]});
+  rows.push({k:'total',c:['SURPLUS / (DEFICIT)',N(ch.net,'rs'),N(nw.net,'rs')],neg:[ch.net<0?1:-1,nw.net<0?2:-1],pos:[ch.net>=0?1:-1,nw.net>=0?2:-1]});
+  if (!r.direct) rows.push({c:['Cash surplus before depreciation (non-cash)',N(ch.net+b.depSem,'rs'),N(nw.net+b.depSem,'rs')]});
+  rows.push({c:['Profit margin (surplus ÷ income)',`${fmt(marg(ch),1)}%`,`${fmt(marg(nw),1)}%`]});
+  if (r.profitReq>0) rows.push({c:['Required profit',N(r.profitReq,'rs'),N(r.profitReq,'rs')]});
+  blocks.push({type:'table',title:`Income and expenditure for one semester (${m} months)`,table:{head:['Item','At chart fees (₹)','At new fees (₹)'],num:[1,2],rows}});
+  // 3. own bus vs hired bus
+  if (B.ownMonth!==undefined){
+    const br=[
+      {c:['Bus staff salary (average per bus)',N(B.salary,'rs')]},
+      {c:['Road tax',N(B.tax,'rs')]},
+      {c:['Insurance (yearly ÷ 12)',N(B.ins,'rs')]},
+      {c:[`Depreciation of a new bus (₹${fmt(v.busCost)} × ${fmt(v.depRate,1)}% ÷ 12)`,N(B.dep,'rs')]},
+      {c:['Diesel and maintenance (average per bus)',N(B.run,'rs')]},
+      {c:[`Reserve + contingency (${fmt(r.pctSum*100,1)}%)`,N(B.ownMonth-B.base,'rs')]},
+      {k:'sub',c:['Cost of running one own bus',N(B.ownMonth,'rs')]},
+      {k:'sub',c:[`Rent of one hired bus${v.pctOnRent?' (with reserve and contingency)':''}`,N(B.rentMonth,'rs')]},
+      {k:'total',c:[B.saveMonth>=0?'Saving per bus if bought instead of hired':'Extra cost per bus if bought instead of hired',N(Math.abs(B.saveMonth),'rs')],neg:B.saveMonth<0?[1]:[],pos:B.saveMonth>=0?[1]:[]},
+      {c:['Saving per bus per year (2 semesters)',B.saveMonth>0?N(B.saveYear,'rs'):'–']},
+      {c:['Payback period of one new bus',B.payback?`${fmt(B.payback,1)} years`:'does not pay back']},
+      {c:['Paying students one own bus needs to cover its cost',B.breakEvenStudents!==null?`${fmt(B.breakEvenStudents)} students`:'–']},
+      {c:['Paying students per own bus now (average)',`${fmt(B.avgStudentsOwn,1)} students`]}];
+    blocks.push({type:'table',title:'Own bus or hired bus? (per bus per month)',table:{head:['Item','₹ / month'],num:[1],rows:br}});
+    // 4. how many buses to buy
+    let buy;
+    if (r.contractBuses===0) buy=`The college hires no buses now, so buying buses does not reduce cost. A new own bus on a new route pays for itself only if it carries at least ${fmt(B.breakEvenStudents||0)} paying students at the average fee of ₹${fmt(B.avgFee)} a semester.`;
+    else if (!B.worth) buy=`Do not buy buses to replace the ${r.contractBuses} hired bus(es): running an own bus costs ₹${fmt(-B.saveMonth)} a month more than hiring one.`;
+    else {
+      buy=`Buy ${B.buyAll} bus(es) to replace all hired buses: capital ₹${fmt(B.capitalAll)}, saving ₹${fmt(B.saveAllSem)} a semester, each bus paying back in about ${fmt(B.payback,1)} years.`;
+      if (ch.net<0) buy+= B.enough?` Buying ${B.needForBreakEven} of them is enough to remove the present deficit of ₹${fmt(-ch.net)} without raising fees.`:` Even buying all ${r.contractBuses} does not remove the present deficit; fees or student numbers must also rise.`;
+      else buy+=` The service already makes a surplus at chart fees, so buying adds to the surplus.`;
+    }
+    blocks.push({type:'para',title:'How many buses to buy',text:buy});
+  }
+  // 5. why
+  const why=[];
+  const exps=[...b.expenses].sort((a,c)=>c[1]-a[1]);
+  if (!r.direct&&b.expTotal>0) why.push(`Largest costs: ${exps.slice(0,3).map(x=>`${x[0].toLowerCase()} ${fmt(x[1]/b.expTotal*100,0)}%`).join(', ')} of all spending.`);
+  if (r.students>0){ const cps=r.costUsed/r.students, af=nw.bS/r.students; why.push(`Each paying student costs ₹${fmt(cps)} a semester to carry and pays ₹${fmt(af)} on average${cps>af?`; the gap of ₹${fmt(cps-af)} per student must come from teachers, the institution or a fee increase`:''}.`); }
+  const ob=r.routes.length; if (ob>0) why.push(`Buses in the stop list carry ${fmt(r.travellers/ob,1)} travellers on average out of ${fmt(v.seats)} seats (${fmt(r.travellers/ob/Math.max(1,v.seats)*100,0)}% full). Empty seats cost the same as full ones.`);
+  if (r.free+r.caretakers>0) why.push(`${fmt(r.free)} free students and ${fmt(r.caretakers)} caretakers ride free (value ₹${fmt(r.freeValue)} a semester), paid ${v.freeBy==='institution'?'by the institution':'through the other fees'}.`);
+  if (r.contractExtra>0) why.push(`${r.contractExtra} hired bus(es) are costed (₹${fmt(r.extraContract.costSheet)}) but their students' fees are not in the list, which lowers the result.`);
+  const loss=r.routes.filter(R=>R.result<0); if (loss.length) why.push(`${loss.length} of ${r.routes.length} routes do not cover their own cost: ${loss.map(R=>R.name).join(', ')}.`);
+  if (!r.direct&&b.depSem>0) why.push(`Depreciation of ₹${fmt(b.depSem)} is a book cost, not cash paid out; it is the money needed to replace buses later.`);
+  blocks.push({type:'list',title:`Why the ${pl(ch.net)} happens`,items:why.slice(0,5)});
+  // 6. suggestions
+  const sg=[];
+  if (r.contractExtra>0) sg.push(`First add the stops and students of the ${r.contractExtra} hired bus(es) to the stop list: their rent of ₹${fmt(r.extraContract.costSheet)} is counted but their fees are not, so the result understates income${revised?' and overstates the increase needed':''}.`);
+  if (ch.net<0&&!r.short) sg.push(`Apply the fee revision shown (method ${r.method}${r.method==='A'?`, ${fmt(r.q*100,2)}% for every stop`:''}); it turns the deficit into a surplus of ₹${fmt(nw.net)}.`);
+  if (r.short) sg.push(`The yearly cap leaves a shortfall of ₹${fmt(r.shortfall)}; plan it from contingency or an institution grant, and recover the rest next year.`);
+  if (B.worth) sg.push(`Replace hired buses with own buses when funds allow: each saves about ₹${fmt(B.saveYear)} a year.`);
+  else if (r.contractBuses>0&&B.ownMonth!==undefined) sg.push('Keep hiring the contract buses; at today\'s figures hiring is cheaper than owning.');
+  const lowR=r.routes.filter(R=>R.occupancy<60); if (lowR.length) sg.push(`Fill or merge under-used routes (below 60% of seats): ${lowR.map(R=>R.name).join(', ')}.`);
+  if (r.students>0&&ch.net<0){ const af=ch.bS/r.students; if (af>0&&r.keep>0) sg.push(`Alternatively, about ${fmt(Math.ceil(-ch.net/(af*r.keep)-1e-9))} more paying students at the present average fee of ₹${fmt(af)} would remove the deficit without any fee increase.`); }
+  if (v.freeBy!=='institution'&&r.freeValue>0) sg.push(`Ask the institution to fund free travel (₹${fmt(r.freeValue)} a semester), so paying students do not carry it.`);
+  if (ch.net>0&&!revised) sg.push(`Fees already collect ₹${fmt(ch.net)} more than cost. Hold fees, or keep the surplus as a bus replacement fund.`);
+  sg.push('Revise once a year with method A and a yearly cap, using real student counts from the bus pass register.');
+  blocks.push({type:'list',title:'Suggestions',items:sg.slice(0,6)});
+  blocks.push({type:'note',text:'Not included: loan interest on new buses, GST, and buses or stops that are not in the stop list. All figures are for one semester unless stated.'});
+  return {id:'biz',n:0,title:'Business report: profit or loss and how to improve it',orient:'p',pageBreak:true,blocks};
+}
+
+function buildReport(){
+  const {v,r,cs,meta}=STATE;
+  const dt=distTable(v,r);
+  return {meta, kpis:[
+    ['Routes · stops',`${r.routes.length} · ${r.stopRows.length}`],
+    ['Fare stages',`${r.stageValues.length} (₹${fmt(r.stageValues[0]||0)} – ₹${fmt(r.stageValues[r.stageValues.length-1]||0)})`],
+    ['Fee-paying students',fmt(r.students)],
+    ['Cost / month',R(r.total)],
+    ['Cost / semester',R(r.costUsed)],
+    ['To collect (cost + profit)',R(r.target)],
+    ['Collection at chart fees',R(r.baseCollect)],
+    ['Institution share',R(r.instTotal)],
+    ['Method',`${r.method}${r.capPct>0?` · cap ${fmt(r.capPct,1)}%`:''}`,1],
+    ['Fee change',r.changed?`${fmt(r.chLo*100,1)}% – ${fmt(r.chHi*100,1)}%`:'none',1],
+    ['Expected collection',R(r.expected),1],
+    [r.short?'Shortfall':'Profit / semester',R(r.short?r.shortfall:r.profit),1]],
+   sections:[
+    {id:'inputs',n:1,title:'Input data',orient:'p',intro:'All values used in this calculation. Counts come from the stop list.',table:{head:['Section','Item','Value','Unit'],num:[2],rows:inputRows(v,r)}},
+    {id:'cost',n:2,title:'Monthly cost and required collection',orient:'p',intro:r.direct?'The semester cost is entered directly; the cost sheet is shown for reference.':'Each line with the working used.',table:{head:['Cost head','How it is calculated','Amount (₹)'],num:[2],work:[1],rows:costRows(v,r)}},
+    {id:'rate',n:3,title:'Fee revision',orient:'p',intro:revIntro(v,r),table:{head:['Step','How it is calculated','Value'],num:[2],work:[1],rows:rateRows(v,r)}},
+    {id:'stages',n:4,title:'Fare stages',orient:'p',intro:'Every different chart fee, its fare units and its new fee.',table:stageTable(v,r)},
+    {id:'stops',n:5,title:'Fee chart by stop',orient:'l',intro:`${r.stopRows.length} stops on ${r.routes.length} routes. "same" = the stop keeps its June 2026 chart fee.`,table:stopTable(v,r)},
+    {id:'routes',n:6,title:'Route-wise result',orient:'l',intro:'Collection at chart fees and at the new fees against each route\'s share of cost.',table:routeTable(v,r)}]
+    .concat(dt?[{id:'dist',n:7,title:'Fare units against distance',orient:'p',intro:`k = ${fmt(r.dist.alpha,2)} + ${fmt(r.dist.beta,3)} × km (R² = ${fmt(r.dist.r2,2)}). Present charge ≈ ₹${fmt(r.dist.perKm,1)} per km per month. Stops marked Review differ by more than ${fmt(Math.max(2*r.dist.sd,2),1)} fare units from what their distance suggests.`,table:dt}]:[])
+    .concat([{id:'checks',n:dt?8:7,title:'Checks',orient:'p',checks:cs}])
+    .concat([{...businessSection(v,r),n:dt?9:8}])};
+}
+function fmtCell(x){
+  if (x===null||x===undefined) return '';
+  if (typeof x!=='object') return String(x);
+  switch(x.f){
+    case 'rs': return fmt(x.n); case 'rs2': return fmt(x.n,2); case 'rs4': return fmt(x.n,4);
+    case 'dec1': return fmt(x.n,1); case 'dec2': return fmt(x.n,2);
+    case 'pct': return (x.n>0?'+':'')+fmt(x.n*100,1)+'%'; case 'pct0': return fmt(x.n*100,0)+'%';
+    default: return fmt(x.n);
+  }
+}
+
+/* ---------- blocks (business report) ---------- */
+function simpleTableHTML(t,cls){
+  let h=`<table class="${cls||''}"><thead><tr>${t.head.map((x,i)=>`<th class="${t.num.includes(i)?'r n':''}">${esc(x)}</th>`).join('')}</tr></thead><tbody>`;
+  for (const row of t.rows) h+=`<tr class="${row.k||''}">${row.c.map((x,i)=>`<td class="${[t.num.includes(i)?'amt n':'',(row.neg||[]).includes(i)?'neg':'',(row.pos||[]).includes(i)?'pos':''].join(' ')}">${esc(fmtCell(x))}</td>`).join('')}</tr>`;
+  return h+'</tbody></table>';
+}
+function blocksHTML(blocks,print){
+  return blocks.map(bk=>{
+    const t=bk.title?`<h3 class="${print?'bh':'subh'}">${esc(bk.title)}</h3>`:'';
+    if (bk.type==='para') return `${t}<p class="${print?'bp':'sec-note bp'}">${esc(bk.text)}</p>`;
+    if (bk.type==='note') return `<p class="${print?'bnote':'sec-note'}"><i>${esc(bk.text)}</i></p>`;
+    if (bk.type==='list') return `${t}<ul class="${print?'bl':'bl'}">${bk.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
+    if (bk.type==='table') return `${t}<div class="tbl">${simpleTableHTML(bk.table,print?'bt':'')}</div>`;
+    return '';
+  }).join('');
+}
+/* ---------- screen render ---------- */
+function renderTable(el,t){
+  const hide=new Set(t.group!==undefined?[0,1]:[]);
+  const vis=t.head.map((h,i)=>i).filter(i=>!hide.has(i));
+  el.querySelector('thead').innerHTML='<tr>'+vis.map(i=>`<th class="${t.num.includes(i)?'r':''}">${esc(t.head[i])}</th>`).join('')+'</tr>';
+  let html='', last=null;
+  const cell=(row,i)=>{ const x=row.c[i]; const cls=[t.num.includes(i)?'amt':'',(t.work||[]).includes(i)?'how':'',(row.neg||[]).includes(i)?'neg':'',(row.pos||[]).includes(i)?'pos':''].join(' ');
+    const txt=esc(fmtCell(x)); return `<td class="${cls}">${i===t.bold?`<b>${txt}</b>`:txt}</td>`; };
+  for (const row of t.rows){
+    if (t.group!==undefined && row.c[0]!==last){ last=row.c[0]; html+=`<tr class="grp"><td colspan="${vis.length}">${esc(row.c[0])} · ${esc(row.c[1])}</td></tr>`; }
+    html+=`<tr class="${row.k||''}">`+vis.map(i=>cell(row,i)).join('')+'</tr>';
+  }
+  if (t.foot) html+=`<tr class="total">`+vis.map(i=>cell(t.foot,i)).join('')+'</tr>';
+  el.querySelector('tbody').innerHTML=html;
+}
+function render(){
+  const v=read(); const parsed=parseCSV($('csvtext').value);
+  const stops=parsed.stops; const r=calc(v,stops);
+  const cs=[...parsed.errors.map(m=>({lvl:'bad',msg:'List: '+m})),...parsed.warnings.map(m=>({lvl:'warn',msg:'List: '+m})),...checks(v,r,parsed)];
+  STATE={v,r,cs,parsed,meta:{period:$('m_period').value,by:$('m_by').value,date:$('m_date').value,sample:isSample}};
+  $('sampletag').hidden=!isSample;
+  const dim=(id,on)=>{ const el=$('f_'+id); const tr=el&&el.closest('tr'); if(tr) tr.classList.toggle('dim',!!on); };
+  dim('teacherSub',v.teacherMode==='stage'); dim('teacherBasis',v.teacherMode!=='stage'); dim('teacherStageBy',v.teacherMode!=='stage');
+  dim('needDirect',v.needMode!=='direct');
+  const sb=document.querySelector('.stagebox'); if (sb) sb.classList.toggle('dim',v.teacherMode!=='stage');
+  const byFee=v.teacherStageBy!=='km'; $('stUpHead').textContent=byFee?'Up to chart fee (₹/month)':'Up to km';
+  const closed=[1,2,3,4,5].map(i=>({i,km:v['st'+i+'Km'],rate:v['st'+i+'Rate']})).filter(x=>x.rate>0&&x.km>0).sort((a,b)=>a.km-b.km);
+  const lastKm=closed.length?closed[closed.length-1].km:0; let openSeen=false; const unit=x=>byFee?'₹'+fmt(x):fmt(x)+' km';
+  for (let i=1;i<=5;i++){ const km=v['st'+i+'Km'], rate=v['st'+i+'Rate']; let t;
+    if (!(rate>0)) t='Not used';
+    else if (!(km>0)){ t=openSeen?'Not used (only one "and above" stage)':`Above ${unit(lastKm)}`; openSeen=true; }
+    else { const k=closed.findIndex(x=>x.i===i); t=`${k>0?'Above '+unit(closed[k-1].km)+' up to':'Up to'} ${unit(km)}`; }
+    if (rate>0&&!t.startsWith('Not')){ const cnt=r.stopRows.filter(s=>s.teachers>0).length; t+=` · ₹${fmt(rate*(v.teacherBasis==='month'?v.semMonths:1))} per semester`; }
+    $('stl'+i).textContent=t; }
+  $('csvstatus').textContent=parsed.errors.length?`${parsed.errors.length} problem(s) in the list — see below`:`${stops.length} stops loaded`;
+  $('csvstatus').style.color=parsed.errors.length?'var(--bad)':'var(--good)';
+  $('csvpills').innerHTML=[`Routes: ${r.routes.length}`,`Stops: ${stops.length}`,`Fare stages: ${r.stageValues.length}`,`Students: ${fmt(r.students)}`,`Free: ${fmt(r.free)}`,`Teachers: ${fmt(r.teachers)}`,`Caretakers: ${fmt(r.caretakers)}`,`Stops with distance: ${r.dist.n}`].map(x=>`<span>${x}</span>`).join('');
+  $('csverrors').innerHTML=parsed.errors.map(e=>`<li class="bad"><b class="pill">Error</b><span>${esc(e)}</span></li>`).join('')+parsed.warnings.map(e=>`<li class="warn"><b class="pill">Check</b><span>${esc(e)}</span></li>`).join('');
+  const tbody=(id,rows)=>{ document.querySelector(`#${id} tbody`).innerHTML=rows.map(row=>`<tr class="${row.k||''}"><td>${esc(row.c[0])}</td><td class="how">${esc(row.c[1])}</td><td class="amt">${esc(fmtCell(row.c[2]))}</td></tr>`).join(''); };
+  tbody('t_cost',costRows(v,r));
+  tbody('t_rate',rateRows(v,r));
+  const unchanged=r.q===0&&!r.short;
+  $('feebox').innerHTML=`
+   <div class="main"><span>Result</span><b>${unchanged?'Chart fees unchanged':r.reduced?'Fees reduced':`Method ${r.method}: ${r.method==='A'?fmt(r.q*100,2)+'%':r.method==='B'?'+₹'+fmt(r.q,2)+' / unit':'+₹'+fmt(r.q,2)+' / month'}`}</b><small>${unchanged?'present fees cover the required collection':`${r.changed} of ${r.stopRows.length} stops change · ${fmt(r.chLo*100,1)}% – ${fmt(r.chHi*100,1)}%`}</small></div>
+   <div><span>Required collection vs collection at chart fees</span><b class="${r.baseCollect>=r.target?'pos':'neg'}">${r.baseCollect>=r.target?'+':'−'}${R(Math.abs(r.baseCollect-r.target))}</b><small>${R(r.baseCollect)} at chart fees vs ${R(r.target)} needed</small></div>
+   <div><span>${r.short?'Shortfall this year':'Profit this semester'}</span><b class="${r.short?'neg':''}">${R(r.short?r.shortfall:r.profit)}</b><small>${r.short?`cap ${fmt(r.capPct,1)}% reached`:`expected ${R(r.expected)} − cost ${R(r.costUsed)}`}</small></div>
+   <div><span>Study formula (students only)</span><b>g = ${r.gStudy>0?fmt(r.gStudy*100,2)+'%':'0%'}</b><small>C_req ÷ (κ × B_now) − 1</small></div>`;
+  $('formula').textContent=`Base fee (study):   M = ₹${fmt(r.M0)} + ₹${fmt(r.U)} × k        semester fee = M × ${v.semMonths}\n`+
+    `Method A:  M_new = M + ⌈g × M / ₹${v.roundTo}⌉ × ₹${v.roundTo}\nMethod B:  M_new = M + ⌈Δu × k / ₹${v.roundTo}⌉ × ₹${v.roundTo}\nMethod C:  M_new = M + ⌈Δ / ₹${v.roundTo}⌉ × ₹${v.roundTo}\n`+
+    `Solved so that collection ≥ required collection (C_req = ₹${fmt(r.target)})${r.capPct>0?`; increase ≤ ${fmt(r.capPct,1)}% of M`:''}. With no increase, M_new = M exactly.`;
+  $('feechartnote').textContent=`${stops.length} stops on ${r.routes.length} routes. "same" = keeps the June 2026 chart fee. Fare units k = (M − ${fmt(r.M0)}) ÷ ${fmt(r.U)}; a decimal k means the fee is off the ₹${fmt(r.U)} grid.`;
+  renderTable($('t_stops'),stopTable(v,r));
+  renderTable($('t_stages'),stageTable(v,r));
+  renderTable($('t_routes'),routeTable(v,r));
+  const dt=distTable(v,r);
+  $('distnote').textContent=dt?`k = ${fmt(r.dist.alpha,2)} + ${fmt(r.dist.beta,3)} × km, R² = ${fmt(r.dist.r2,2)} from ${r.dist.n} stops. The present chart charges about ₹${fmt(r.dist.perKm,1)} per km per month.`:'Add a "Distance KM" value for at least 3 stops in the list to see how the present fare units relate to distance (study section 7). Fees are not affected.';
+  $('t_dist').hidden=!dt; if (dt) renderTable($('t_dist'),dt);
+  { const bz=businessSection(v,r); $('bizbox').innerHTML=blocksHTML(bz.blocks,false); }
+  $('vtag').textContent=VERSION_TEXT;
+  $('checks').innerHTML=cs.map(c=>`<li class="${c.lvl}"><b class="pill">${c.lvl==='ok'?'OK':c.lvl==='warn'?'Check':'Error'}</b><span>${esc(c.msg)}</span></li>`).join('');
+  const nb=cs.filter(c=>c.lvl==='bad').length, nw=cs.filter(c=>c.lvl==='warn').length;
+  $('s_rs').textContent=`${r.routes.length} · ${r.stopRows.length}`;
+  $('s_cost').textContent=R(r.costUsed);
+  $('s_total').textContent=R(r.target);
+  $('s_req').textContent=R(r.baseCollect);
+  $('s_rate').textContent=unchanged?'No change':`${fmt(r.chLo*100,1)}–${fmt(r.chHi*100,1)}%`;
+  const sc=$('s_checks'); sc.textContent=nb?`${nb} error${nb>1?'s':''}`:nw?`${nw} to check`:'All OK';
+  sc.style.color=nb?'var(--bad)':nw?'var(--warn)':'var(--good)';
+  try{ localStorage.setItem('busfee_base_v1',JSON.stringify({v,csv:$('csvtext').value,sample:isSample,meta:{p:$('m_period').value,b:$('m_by').value,d:$('m_date').value}})); }catch(e){}
+}
+
+/* ---------- print report (HTML) ---------- */
+function dateText(d){ if(!d) return ''; const x=new Date(d+'T00:00:00'); return isNaN(x)?d:x.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+function buildPrint(){
+  const rep=buildReport(); const m=rep.meta;
+  const runhead=`<div class="runhead"><img src="${LOGO}" alt=""><span>Bus Fees Calculator · ${esc(m.period)}</span></div>`;
+  const tableHTML=t=>{
+    const hide=new Set(t.group!==undefined?[0,1]:[]);
+    const vis=t.head.map((h,i)=>i).filter(i=>!hide.has(i));
+    const cls=(row,i)=>[t.num.includes(i)?'n':'',(t.work||[]).includes(i)?'w':'',(row.neg||[]).includes(i)?'neg':'',(row.pos||[]).includes(i)?'pos':''].join(' ');
+    let h=`<table><thead><tr>${vis.map(i=>`<th class="${t.num.includes(i)?'n':''}">${esc(t.head[i])}</th>`).join('')}</tr></thead><tbody>`;
+    let last=null;
+    for (const row of t.rows){
+      if (t.group!==undefined && row.c[0]!==last){ last=row.c[0]; h+=`<tr class="grp"><td colspan="${vis.length}">${esc(row.c[0])} · ${esc(row.c[1])}</td></tr>`; }
+      h+=`<tr class="${row.k||''}">${vis.map(i=>`<td class="${cls(row,i)}">${esc(fmtCell(row.c[i]))}</td>`).join('')}</tr>`;
+    }
+    if (t.foot) h+=`<tr class="total">${vis.map(i=>`<td class="${cls(t.foot,i)}">${esc(fmtCell(t.foot.c[i]))}</td>`).join('')}</tr>`;
+    return h+'</tbody></table>';
+  };
+  let html=`<div class="lh"><img src="${LOGO}" alt="TKM Institute of Technology"><div class="t"><h1>Bus Fees Calculator</h1><div class="credit">Created by Industry Connect-TKMIT</div><div class="credit" style="font-style:normal">${esc(VERSION_TEXT)}</div></div></div>
+   <div class="metaline"><span><b>Period:</b> ${esc(m.period)}</span><span><b>Prepared by:</b> ${esc(m.by||'—')}</span><span><b>Date:</b> ${esc(dateText(m.date))}</span>${m.sample?'<span><b>SAMPLE STUDENT NUMBERS</b></span>':''}</div>
+   <div class="kpis">${rep.kpis.map(k=>`<div class="kpi${k[2]?' hl':''}"><span>${esc(k[0])}</span><b>${esc(k[1])}</b></div>`).join('')}</div>`;
+  const signHTML=`<div class="sign"><div>Prepared by (Data entry)</div><div>Checked by (Accounts)</div><div>Approved by</div></div>`; let signed=false;
+  let prevOrient='p', first=true;
+  for (const s of rep.sections){
+    const newPage = s.orient==='l' || (prevOrient==='l' && s.orient==='p');
+    const klass = s.orient==='l' ? 'rp-sec rp-wide' : (newPage ? 'rp-sec rp-break' : 'rp-sec');
+    if (s.pageBreak&&!signed){ html+=signHTML; signed=true; }
+    const brk=newPage||s.pageBreak;
+    html+=`<section class="${s.orient==='l'?'rp-sec rp-wide':(brk?'rp-sec rp-break':'rp-sec')}">${brk?runhead:''}<h2><span class="n">${s.n}</span>${esc(s.title)}</h2>${s.intro?`<p class="intro">${esc(s.intro)}</p>`:''}`;
+    if (s.table) html+=tableHTML(s.table);
+    if (s.blocks) html+=blocksHTML(s.blocks,true);
+    if (s.checks) html+=`<ul class="ck">${s.checks.map(c=>`<li class="${c.lvl}"><b>${c.lvl==='ok'?'OK':c.lvl==='warn'?'Check':'Error'}</b><span>${esc(c.msg)}</span></li>`).join('')}</ul>`;
+    html+='</section>'; prevOrient=s.orient; first=false;
+  }
+  html+=`${signed?'':signHTML}
+   <p class="endnote"><b><i>Created by Industry Connect-TKMIT.</i></b> TKM Institute of Technology, Musaliar Hills, Karuvelil PO, Kollam, Kerala 691505. Fees are rounded up so that collection covers the semester cost.</p>`;
+  $('report').innerHTML=html;
+}
+
+/* ---------- file helpers ---------- */
+let framed=true; try{ framed=window.self!==window.top; }catch(e){}
+function note(msg,ok){ const n=$('notice'); n.textContent=msg; n.className='notice'+(ok?' ok':''); n.hidden=!msg; }
+const LIBS={xlsx:['https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'],
+  pdf:['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js','https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js']};
+const loaded={};
+function loadScript(src){
+  if (!loaded[src]) loaded[src]=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>res(); s.onerror=()=>{ delete loaded[src]; s.remove(); rej(new Error('load')); }; document.head.appendChild(s); });
+  return loaded[src];
+}
+async function loadLibs(kind){ for (const src of LIBS[kind]) await loadScript(src); }
+async function saveFile(filename,blob){
+  if (window.claude && typeof window.claude.use==='function'){
+    const d=await window.claude.use('downloads');
+    if (d){ try{ await d.save({filename,data:blob}); return 'saved'; }catch(e){ if(e&&e.code==='declined') return 'declined'; if(e&&e.code!=='unavailable'&&e.code!=='not_granted') throw e; } }
+    if (framed) throw Object.assign(new Error('Saving files is not available in this view.'),{code:'unavailable'});
+  }
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},2000); return 'saved';
+}
+function baseName(){ const p=($('m_period').value||'Semester').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,''); return `Bus_Fees_Revision_${p||'Report'}`; }
+function pdfText(s){ return String(s).replace(/₹/g,'Rs.').replace(/Σ/g,'Sum ').replace(/[−–—]/g,'-').replace(/…/g,'...').replace(/→/g,'->').replace(/≥/g,'>=').replace(/[^\x00-\xFF]/g,''); }
+
+/* ---------- PDF ---------- */
+const NAVY=[28,43,64], GREEN=[95,158,58];
+async function makePDF(){
+  await loadLibs('pdf');
+  const {jsPDF}=window.jspdf;
+  const rep=buildReport(); const m=rep.meta;
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait',compress:true});
+  doc.setProperties({title:'Bus Fees Calculator - '+m.period,author:m.by||'Industry Connect-TKMIT',creator:'Bus Fees Calculator - Created by Industry Connect-TKMIT'});
+  const M=12, TOP=24;
+  const W=()=>doc.internal.pageSize.getWidth(), H=()=>doc.internal.pageSize.getHeight();
+  const logoW=78, logoH=logoW*79/474;
+  doc.addImage(LOGO,'JPEG',M,10,logoW,logoH);
+  doc.setTextColor(...NAVY); doc.setFont('helvetica','bold'); doc.setFontSize(20);
+  doc.text('Bus Fees Calculator',W()-M,17,{align:'right'});
+  doc.setFont('helvetica','bolditalic'); doc.setFontSize(8.5); doc.setTextColor(70);
+  doc.text('Created by Industry Connect-TKMIT',W()-M,22,{align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...GREEN); doc.text(pdfText(VERSION_TEXT),W()-M,25,{align:'right'});
+  doc.setDrawColor(...GREEN); doc.setLineWidth(1.1); doc.line(M,27,W()-M,27);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(50);
+  doc.text(pdfText(`Period: ${m.period}     Prepared by: ${m.by||'-'}     Date: ${dateText(m.date)}${m.sample?'     SAMPLE STUDENT NUMBERS':''}`),M,31.5);
+  // KPI tiles
+  let y=35; const cols=4, gap=2.5, tw=(W()-2*M-gap*(cols-1))/cols, th=12.5;
+  rep.kpis.forEach((k,i)=>{
+    const cx=M+(i%cols)*(tw+gap), cy=y+Math.floor(i/cols)*(th+gap);
+    if (k[2]){ doc.setFillColor(233,243,225); doc.setDrawColor(...GREEN); } else { doc.setFillColor(246,248,245); doc.setDrawColor(207,214,207); }
+    doc.setLineWidth(.3); doc.roundedRect(cx,cy,tw,th,1.5,1.5,'FD');
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.6); doc.setTextColor(90); doc.text(pdfText(k[0]).toUpperCase(),cx+2.5,cy+4.3);
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...NAVY); doc.text(pdfText(k[1]),cx+2.5,cy+10);
+  });
+  y+=Math.ceil(rep.kpis.length/cols)*(th+gap)+3;
+  const origAdd=doc.addPage.bind(doc); let curOrient='p';
+  doc.addPage=function(){ return origAdd('a4',curOrient==='l'?'landscape':'portrait'); };
+  const heading=(s)=>{
+    if (y>H()-30){ doc.addPage(); y=TOP; }
+    doc.setFillColor(...NAVY); doc.roundedRect(M,y-4.2,6.5,6,1,1,'F');
+    doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text(String(s.n),M+3.25,y,{align:'center'});
+    doc.setTextColor(...NAVY); doc.setFontSize(12.5); doc.text(pdfText(s.title),M+9,y+.2);
+    y+=3.5;
+    if (s.intro){ doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(70); const lines=doc.splitTextToSize(pdfText(s.intro),W()-2*M); doc.text(lines,M,y+2.5); y+=lines.length*3.4+2; }
+  };
+  let prev='p', signed=false;
+  const drawSign=()=>{ if (y>H()-40){ doc.addPage(); y=TOP; } y+=16; doc.setDrawColor(20); doc.setLineWidth(.3);
+    const sw=(W()-2*M-20)/3;
+    ['Prepared by (Data entry)','Checked by (Accounts)','Approved by'].forEach((t,i)=>{ const x=M+i*(sw+10); doc.line(x,y,x+sw,y); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(60); doc.text(t,x,y+4); });
+    y+=10; };
+  const need=h=>{ if (y+h>H()-16){ doc.addPage(); y=TOP; } };
+  const paraPDF=(text,size,style,color)=>{ doc.setFont('helvetica',style||'normal'); doc.setFontSize(size); doc.setTextColor(...(color||[25,25,25])); const lines=doc.splitTextToSize(pdfText(text),W()-2*M); need(lines.length*size*0.42+1); doc.text(lines,M,y+size*0.35); y+=lines.length*size*0.42+1.5; };
+  for (const s of rep.sections){
+    const newPage=s.orient==='l'||(prev==='l'&&s.orient==='p');
+    curOrient=s.orient;
+    if (s.pageBreak){ if (!signed){ drawSign(); signed=true; } doc.addPage(); y=TOP; }
+    else if (newPage){ doc.addPage(); y=TOP; }
+    heading(s);
+    if (s.blocks){
+      y+=1.5;
+      for (const bk of s.blocks){
+        if (bk.title){ need(12); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...NAVY); doc.text(pdfText(bk.title),M,y+3); y+=4.4; }
+        if (bk.type==='para') paraPDF(bk.text,7.8);
+        if (bk.type==='note') paraPDF(bk.text,7,'italic',[90,90,90]);
+        if (bk.type==='list'){ for (const it of bk.items){ doc.setFont('helvetica','normal'); doc.setFontSize(7.6); const lines=doc.splitTextToSize(pdfText(it),W()-2*M-5); need(lines.length*3.1+1); doc.setTextColor(...GREEN); doc.text('-',M+1,y+2.6); doc.setTextColor(25); doc.text(lines,M+5,y+2.6); y+=lines.length*3.1+0.6; } y+=0.8; }
+        if (bk.type==='table'){
+          const t=bk.table;
+          const body=t.rows.map(row=>row.c.map((x,i)=>{ const st={}; if (t.num.includes(i)) st.halign='right';
+            if ((row.neg||[]).includes(i)) st.textColor=[179,38,30]; if ((row.pos||[]).includes(i)) st.textColor=[31,122,74];
+            if (row.k==='sub'){ st.fillColor=[237,240,236]; st.fontStyle='bold'; } if (row.k==='total'){ st.fillColor=[233,243,225]; st.fontStyle='bold'; }
+            return {content:pdfText(fmtCell(x)),styles:st}; }));
+          doc.autoTable({startY:y,margin:{left:M,right:M,top:TOP,bottom:16},head:[t.head.map((h,i)=>({content:pdfText(h),styles:{halign:t.num.includes(i)?'right':'left'}}))],body,theme:'plain',
+            styles:{font:'helvetica',fontSize:7,cellPadding:{top:.45,bottom:.45,left:1.5,right:1.5},lineColor:[217,221,216],lineWidth:{bottom:.2},textColor:[20,20,20]},
+            headStyles:{fillColor:NAVY,textColor:255,fontStyle:'bold',fontSize:6.8},columnStyles:{0:{cellWidth:t.head.length===2?120:96}},rowPageBreak:'avoid'});
+          y=doc.lastAutoTable.finalY+2;
+        }
+      }
+    }
+    if (s.table){
+      const t=s.table; const hide=new Set(t.group!==undefined?[0,1]:[]);
+      const vis=t.head.map((h,i)=>i).filter(i=>!hide.has(i));
+      const body=[]; let last=null;
+      const toRow=(row,kind)=>vis.map(i=>{
+        const st={}; if (t.num.includes(i)) st.halign='right';
+        if ((t.work||[]).includes(i)){ st.fontSize=6.8; st.textColor=[70,70,70]; }
+        if ((row.neg||[]).includes(i)) st.textColor=[179,38,30]; if ((row.pos||[]).includes(i)) st.textColor=[31,122,74];
+        if (kind==='sub'){ st.fillColor=[237,240,236]; st.fontStyle='bold'; }
+        if (kind==='total'){ st.fillColor=[233,243,225]; st.fontStyle='bold'; }
+        return {content:pdfText(fmtCell(row.c[i])),styles:st};
+      });
+      for (const row of t.rows){
+        if (t.group!==undefined && row.c[0]!==last){ last=row.c[0]; body.push([{content:pdfText(row.c[0]+'  ·  '+row.c[1]),colSpan:vis.length,styles:{fillColor:[228,233,239],textColor:NAVY,fontStyle:'bold'}}]); }
+        body.push(toRow(row,row.k));
+      }
+      if (t.foot) body.push(toRow(t.foot,'total'));
+      doc.autoTable({
+        startY:y, margin:{left:M,right:M,top:TOP,bottom:16},
+        head:[vis.map(i=>({content:pdfText(t.head[i]),styles:{halign:t.num.includes(i)?'right':'left'}}))],
+        body, theme:'plain',
+        styles:{font:'helvetica',fontSize:s.orient==='l'?7.4:7.8,cellPadding:{top:1.1,bottom:1.1,left:1.5,right:1.5},lineColor:[217,221,216],lineWidth:{bottom:.2},overflow:'linebreak',textColor:[20,20,20],valign:'top'},
+        headStyles:{fillColor:NAVY,textColor:255,fontStyle:'bold',fontSize:s.orient==='l'?6.9:7.2,valign:'bottom'},
+        alternateRowStyles:{fillColor:[247,248,246]},
+        rowPageBreak:'avoid', showHead:'everyPage'
+      });
+      y=doc.lastAutoTable.finalY+7;
+    }
+    if (s.checks){
+      doc.setFontSize(7.8);
+      for (const c of s.checks){
+        const lines=doc.splitTextToSize(pdfText(c.msg),W()-2*M-20); const h=lines.length*3.3+2.4;
+        if (y+h>H()-16){ doc.addPage(); y=TOP; }
+        const fill=c.lvl==='ok'?[227,243,234]:c.lvl==='warn'?[255,241,217]:[251,229,227], pill=c.lvl==='ok'?[31,122,74]:c.lvl==='warn'?[154,91,0]:[179,38,30];
+        doc.setFillColor(...fill); doc.roundedRect(M,y,W()-2*M,h,1,1,'F');
+        doc.setFillColor(...pill); doc.roundedRect(M+2,y+1.2,14,3.6,.8,.8,'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(6.4); doc.setTextColor(255); doc.text(c.lvl==='ok'?'OK':c.lvl==='warn'?'CHECK':'ERROR',M+9,y+3.75,{align:'center'});
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.8); doc.setTextColor(25); doc.text(lines,M+19,y+3.8);
+        y+=h+1.2;
+      }
+      y+=4;
+    }
+    prev=s.orient;
+  }
+  if (!signed) drawSign();
+  // running header + footer
+  const n=doc.getNumberOfPages();
+  for (let i=1;i<=n;i++){
+    doc.setPage(i); const w=W(), h=H();
+    if (i>1){ doc.addImage(LOGO,'JPEG',M,8,40,40*79/474); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(70); doc.text(pdfText('Bus Fees Calculator · '+m.period),w-M,13,{align:'right'}); doc.setDrawColor(...GREEN); doc.setLineWidth(.4); doc.line(M,16.5,w-M,16.5); }
+    doc.setDrawColor(200); doc.setLineWidth(.2); doc.line(M,h-10,w-M,h-10);
+    doc.setFont('helvetica','bolditalic'); doc.setFontSize(7); doc.setTextColor(90); doc.text('Created by Industry Connect-TKMIT',M,h-6);
+    doc.setFont('helvetica','normal'); doc.text(`Page ${i} of ${n}`,w-M,h-6,{align:'right'});
+  }
+  return doc.output('blob');
+}
+
+/* ---------- Excel ---------- */
+async function makeXLSX(){
+  await loadLibs('xlsx');
+  const rep=buildReport(); const m=rep.meta; const {r}=STATE;
+  const wb=new ExcelJS.Workbook(); wb.creator='Industry Connect-TKMIT'; wb.created=new Date();
+  const img=wb.addImage({base64:LOGO,extension:'jpeg'});
+  const NAVYX='FF1C2B40', GREENX='FF5F9E3A';
+  const numFmt={int:'#,##0',rs:'#,##0',rs2:'#,##0.00',rs4:'#,##0.0000',dec1:'#,##0.0',dec2:'#,##0.00',pct:'+0.0%;-0.0%;0.0%',pct0:'0%'};
+  const sheet=(name,title,orient,widths)=>{
+    const ws=wb.addWorksheet(name,{pageSetup:{paperSize:9,orientation:orient==='l'?'landscape':'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.45,right:.45,top:.5,bottom:.6,header:.3,footer:.3},horizontalCentered:true},views:[{showGridLines:false}]});
+    ws.headerFooter.oddFooter='&L&"-,Bold Italic"Created by Industry Connect-TKMIT&RPage &P of &N';
+    widths.forEach((w,i)=>ws.getColumn(i+1).width=w);
+    ws.addImage(img,{tl:{col:0,row:0},ext:{width:330,height:55}});
+    ws.getRow(1).height=22; ws.getRow(2).height=22;
+    const t=ws.getCell('A4'); t.value='Bus Fees Calculator 2.1 — '+title; t.font={bold:true,size:16,color:{argb:NAVYX}};
+    const c=ws.getCell('A5'); c.value='Created by Industry Connect-TKMIT   ·   '+VERSION_TEXT; c.font={bold:true,italic:true,size:9,color:{argb:'FF555555'}};
+    const mm=ws.getCell('A6'); mm.value=`Period: ${m.period}    Prepared by: ${m.by||'-'}    Date: ${dateText(m.date)}${m.sample?'    SAMPLE STUDENT NUMBERS':''}`; mm.font={size:9,color:{argb:'FF444444'}};
+    for (let i=1;i<=widths.length;i++) ws.getCell(6,i).border={bottom:{style:'medium',color:{argb:GREENX}}};
+    return ws;
+  };
+  const writeTable=(ws,startRow,t,intro,opts={})=>{
+    let row=startRow;
+    if (intro){ const ic=ws.getCell(row,1); ic.value=intro; ic.font={italic:true,size:9,color:{argb:'FF555555'}}; ws.mergeCells(row,1,row,t.head.length); ic.alignment={wrapText:true}; ws.getRow(row).height=Math.min(60,15*Math.ceil(intro.length/120)); row+=2; }
+    const hr=ws.getRow(row); t.head.forEach((h,i)=>{ const c=hr.getCell(i+1); c.value=h; c.font={bold:true,color:{argb:'FFFFFFFF'},size:9.5}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVYX}}; c.alignment={vertical:'bottom',horizontal:t.num.includes(i)?'right':'left',wrapText:true}; });
+    hr.height=30; const headRow=row; row++;
+    const put=(rowObj)=>{
+      const xr=ws.getRow(row);
+      rowObj.c.forEach((x,i)=>{
+        const c=xr.getCell(i+1);
+        if (x&&typeof x==='object'){ c.value=(x.f==='pct'||x.f==='pct0')?x.n:Math.round(x.n*10000)/10000; c.numFmt=numFmt[x.f]||'#,##0'; }
+        else c.value=x===''?null:x;
+        c.alignment={vertical:'top',horizontal:t.num.includes(i)?'right':'left',indent:t.num.includes(i)?0:1,wrapText:(t.work||[]).includes(i)||i===1};
+        c.font={size:9.5,bold:rowObj.k==='sub'||rowObj.k==='total',color:{argb:(rowObj.neg||[]).includes(i)?'FFB3261E':(rowObj.pos||[]).includes(i)?'FF1F7A4A':'FF111111'}};
+        c.border={bottom:{style:'thin',color:{argb:'FFD9DDD8'}}};
+        if (rowObj.k==='sub') c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEDF0EC'}};
+        if (rowObj.k==='total'){ c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE9F3E1'}}; c.border={top:{style:'medium',color:{argb:GREENX}},bottom:{style:'thin',color:{argb:'FFD9DDD8'}}}; }
+      });
+      row++;
+    };
+    t.rows.forEach(put); if (t.foot) put(t.foot);
+    if (opts.freeze!==false){ ws.views=[{state:'frozen',ySplit:headRow,showGridLines:false}]; ws.pageSetup.printTitlesRow=`${headRow}:${headRow}`; }
+    return {headRow,lastRow:row-1};
+  };
+  // Summary
+  const S=sheet('Summary','Summary','p',[34,28,4,34,28]);
+  let rr=8; S.getCell(rr,1).value='Key figures'; S.getCell(rr,1).font={bold:true,size:12,color:{argb:NAVYX}}; rr++;
+  rep.kpis.forEach((k,i)=>{ const col=(i%2)*3+1, row=rr+Math.floor(i/2); const a=S.getCell(row,col), b=S.getCell(row,col+1);
+    a.value=k[0]; a.font={size:9.5,color:{argb:'FF555555'}}; b.value=k[1]; b.font={bold:true,size:11,color:{argb:k[2]?GREENX:NAVYX}}; b.alignment={horizontal:'right'};
+    [a,b].forEach(c=>c.border={bottom:{style:'thin',color:{argb:'FFD9DDD8'}}}); });
+  rr+=Math.ceil(rep.kpis.length/2)+2;
+  S.getCell(rr,1).value='Revision'; S.getCell(rr,1).font={bold:true,size:12,color:{argb:NAVYX}}; rr++;
+  S.getCell(rr,1).value=rep.sections.find(s=>s.id==='rate').intro; S.mergeCells(rr,1,rr,5); S.getCell(rr,1).alignment={wrapText:true}; S.getRow(rr).height=45; rr+=2;
+  S.getCell(rr,1).value='Checks'; S.getCell(rr,1).font={bold:true,size:12,color:{argb:NAVYX}}; rr++;
+  for (const c of STATE.cs){ const a=S.getCell(rr,1); a.value=c.lvl==='ok'?'OK':c.lvl==='warn'?'Check':'Error'; a.font={bold:true,color:{argb:'FFFFFFFF'},size:9};
+    a.fill={type:'pattern',pattern:'solid',fgColor:{argb:c.lvl==='ok'?'FF1F7A4A':c.lvl==='warn'?'FF9A5B00':'FFB3261E'}}; a.alignment={horizontal:'center',vertical:'top'};
+    const b=S.getCell(rr,2); b.value=c.msg; S.mergeCells(rr,2,rr,5); b.alignment={wrapText:true,vertical:'top'}; b.font={size:9.5}; S.getRow(rr).height=Math.max(15,13*Math.ceil(c.msg.length/95)); rr++; }
+  rr+=2; ['Prepared by (Data entry)','Checked by (Accounts)','Approved by'].forEach((t,i)=>{ const c=S.getCell(rr,[1,2,4][i]); c.value=t; c.border={top:{style:'thin'}}; c.font={size:9}; });
+  // other sheets
+  const secs=Object.fromEntries(rep.sections.map(s=>[s.id,s]));
+  writeTable(sheet('Input Data','Input data','p',[10,40,22,16]),8,secs.inputs.table,secs.inputs.intro);
+  writeTable(sheet('Cost Sheet','Monthly cost sheet','p',[34,80,18]),8,secs.cost.table,secs.cost.intro);
+  writeTable(sheet('Fee Rate','Fee rate and concessions','p',[34,70,20]),8,secs.rate.table,secs.rate.intro);
+  writeTable(sheet('Fare Stages','Fare stages','p',[8,12,16,16,16,16,10,8,10]),8,secs.stages.table,secs.stages.intro);
+  const st=sheet('Stop Fees','Fee chart by stop','l',[24,8,22,10,13,13,13,13,10,9,7,9,13,13]);
+  const a=writeTable(st,8,secs.stops.table,secs.stops.intro); st.autoFilter={from:{row:a.headRow,column:1},to:{row:a.lastRow-1,column:secs.stops.table.head.length}};
+  const rt=sheet('Route Result','Route-wise result','l',[24,8,7,9,9,7,9,10,9,15,15,14,14,14]);
+  const b=writeTable(rt,8,secs.routes.table,secs.routes.intro); rt.autoFilter={from:{row:b.headRow,column:1},to:{row:b.lastRow-1,column:secs.routes.table.head.length}};
+  if (secs.dist) writeTable(sheet('Fare vs Distance','Fare units against distance','p',[24,22,12,12,14,12,10]),8,secs.dist.table,secs.dist.intro);
+  const raw={head:['Line','Route','Bus Type','Route KM','Stop','Distance KM','Base Monthly Fee','Semester Fee','Students','Free Students','Teachers','Caretakers'],num:[0,3,5,6,7,8,9,10,11],
+    rows:STATE.parsed.stops.map(s=>({c:[N(s.line),s.route,s.type,s.rkm===null?'':N(s.rkm,'dec1'),s.stop,s.km===null?'':N(s.km,'dec1'),s.fee?N(s.fee,'rs'):'',s.sem?N(s.sem,'rs'):'',N(s.students),N(s.free),N(s.teachers),s.care===null?'':N(s.care)]}))};
+  writeTable(sheet('Stop List (CSV)','Stop list as loaded','l',[7,24,10,10,24,11,14,13,10,12,10,11]),8,raw,'Rows loaded from the stop list. Rows with errors are not included.');
+  { const bz=rep.sections.find(x=>x.id==='biz'); const ws=sheet('Business Report',bz.title,'p',[58,22,22]); let row=8;
+    for (const bk of bz.blocks){
+      if (bk.title){ const c=ws.getCell(row,1); c.value=bk.title; c.font={bold:true,size:11,color:{argb:NAVYX}}; row++; }
+      if (bk.type==='para'||bk.type==='note'){ ws.mergeCells(row,1,row,3); const c=ws.getCell(row,1); c.value=bk.text; c.alignment={wrapText:true,vertical:'top'}; c.font={size:9.5,italic:bk.type==='note',color:{argb:bk.type==='note'?'FF555555':'FF111111'}}; ws.getRow(row).height=Math.max(15,14*Math.ceil(bk.text.length/105)); row+=2; }
+      if (bk.type==='list'){ for (const it of bk.items){ ws.mergeCells(row,1,row,3); const c=ws.getCell(row,1); c.value='•  '+it; c.alignment={wrapText:true,vertical:'top'}; c.font={size:9.5}; ws.getRow(row).height=Math.max(15,14*Math.ceil(it.length/105)); row++; } row++; }
+      if (bk.type==='table'){ const res=writeTable(ws,row,bk.table,null,{freeze:false}); row=res.lastRow+2; }
+    }
+    ws.views=[{showGridLines:false}]; }
+  const buf=await wb.xlsx.writeBuffer();
+  return new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+
+/* ---------- wiring ---------- */
+let saved=null; try{ saved=JSON.parse(localStorage.getItem('busfee_base_v1')||'null'); }catch(e){}
+write(saved&&saved.v?{...DEFAULTS,...saved.v}:DEFAULTS);
+$('csvtext').value=saved&&typeof saved.csv==='string'?saved.csv:sampleCSV();
+isSample=saved?!!saved.sample:true;
+if (saved&&saved.meta){ $('m_period').value=saved.meta.p||$('m_period').value; $('m_by').value=saved.meta.b||''; $('m_date').value=saved.meta.d||''; }
+if (!$('m_date').value) $('m_date').value=new Date().toISOString().slice(0,10);
+document.addEventListener('input',e=>{ if(e.target.id==='csvtext') isSample=false; render(); });
+document.addEventListener('change',render);
+$('csvfile').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const fr=new FileReader();
+  fr.onload=()=>{ $('csvtext').value=String(fr.result); isSample=false; render(); note('');};
+  fr.onerror=()=>note('Could not read the file. Save it as CSV (comma separated) and try again.');
+  fr.readAsText(f); e.target.value='';
+});
+$('b_copy').onclick=()=>{ const t=$('csvtext');
+  try{ navigator.clipboard.writeText(t.value).then(()=>{$('csvstatus').textContent='CSV text copied';},()=>{t.select();}); }catch(e){ t.select(); } };
+$('b_sample').onclick=()=>{ write(DEFAULTS); $('csvtext').value=sampleCSV(); isSample=true; render(); };
+$('b_clear').onclick=()=>{ write(Object.fromEntries(KEYS.map(k=>[k,TEXTKEYS.includes(k)?DEFAULTS[k]:k==='roundTo'?10:CHECKKEYS.includes(k)?false:'']))); $('csvtext').value='Route,Bus Type,Route KM,Stop,Distance KM,Base Monthly Fee,Semester Fee,Students,Free Students,Teachers,Caretakers\n'; isSample=false; render(); };
+async function runExport(btn,label,maker,ext){
+  const old=btn.textContent; btn.disabled=true; btn.textContent='Preparing…'; note('');
+  try{
+    render(); const blob=await maker(); const res=await saveFile(`${baseName()}.${ext}`,blob);
+    note(res==='saved'?`${label} ready: ${baseName()}.${ext}`:'Download cancelled.',res==='saved');
+  }catch(e){
+    if (e&&e.message==='load') note(`${label} needs an internet connection the first time (the export library could not load). Connect and try again.`);
+    else if (e&&e.code==='unavailable') note('Saving files is not available in this view. Open the downloaded HTML file in Chrome or Edge.');
+    else if (e&&e.code==='rate_limited') note('A save prompt is already open. Finish it and try again.');
+    else note(`${label} could not be created: ${(e&&e.message)||e}`);
+  }finally{ btn.disabled=false; btn.textContent=old; }
+}
+$('b_pdf').onclick=()=>runExport($('b_pdf'),'PDF',makePDF,'pdf');
+$('b_xlsx').onclick=()=>runExport($('b_xlsx'),'Excel file',makeXLSX,'xlsx');
+$('b_tpl').onclick=async()=>{ try{ const res=await saveFile('bus-fee-chart-June2026.csv',new Blob(['﻿'+sampleCSV()+'\n'],{type:'text/csv'})); note(res==='saved'?'CSV template ready.':'Download cancelled.',res==='saved'); }catch(e){ note('Saving files is not available in this view.'); } };
+$('b_print').onclick=()=>{ render(); buildPrint(); if (framed) note('Printing is blocked inside the Claude viewer. Use Download PDF and print the PDF, or open the HTML file in Chrome or Edge.'); else window.print(); };
+window.addEventListener('beforeprint',()=>{ render(); buildPrint(); });
+render(); buildPrint();
+</script>
